@@ -1,0 +1,14 @@
+.venv
+frontend/node_modules
+.env
+static
+.azure/
+__pycache__/
+.ipynb_checkpoints/
+test.py
+test.ipynb
+.devenv/IdentityServerConfig/TestUsers.json
+.devenv/id_cert.cert
+.devenv/id_cert.csr
+.devenv/id_cert.key
+.devenv/id_cert.pfx

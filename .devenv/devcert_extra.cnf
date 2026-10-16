@@ -1,0 +1,12 @@
+basicConstraints = CA:FALSE
+nsCertType = server
+nsComment = "HR Policy Development Certificate"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+DNS.2 = identity

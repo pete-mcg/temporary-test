@@ -1,0 +1,15 @@
+[
+  {
+    "RequireResourceIndicator": false,
+    "ApiSecrets": [],
+    "Scopes": ["hrpolicy_api"],
+    "AllowedAccessTokenSigningAlgorithms": [],
+    "Enabled": true,
+    "Name": "hrpolicy_api",
+    "DisplayName": "HR Policy API",
+    "Description": "HR Policy Restful Web API",
+    "ShowInDiscoveryDocument": true,
+    "UserClaims": ["name", "email", "fullDisplayName"],
+    "Properties": {}
+  }
+]

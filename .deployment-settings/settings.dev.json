@@ -1,0 +1,267 @@
+[
+  {
+    "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+    "value": "@Microsoft.KeyVault(SecretUri=https://kv-aai-dev-hrpolicyllm-1.vault.azure.net/secrets/app-insight-connection-string-dev)",
+    "slotSetting": true
+  },
+  {
+    "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+    "value": "~3",
+    "slotSetting": true
+  },
+  {
+    "name": "AUTH_CLIENT_ID",
+    "value": "placeholder",
+    "slotSetting": false
+  },
+  {
+    "name": "AUTH_CLIENT_SECRET",
+    "value": "placeholder",
+    "slotSetting": false
+  },
+  {
+    "name": "AUTH_ENABLED",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "AUTH_HOST",
+    "value": "placeholder",
+    "slotSetting": false
+  },
+  {
+    "name": "AUTH_REDIRECT_URI",
+    "value": "http://localhost/callback",
+    "slotSetting": false
+  },
+  {
+    "name": "AUTH_SCOPE",
+    "value": "placeholder",
+    "slotSetting": false
+  },
+  {
+    "name": "AUTH_VERIFY_SSL",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_COSMOSDB_ACCOUNT",
+    "value": "cosdb-aai-dev-hrpolicyllm-01",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_COSMOSDB_CONVERSATIONS_CONTAINER",
+    "value": "conversations",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_COSMOSDB_DATABASE",
+    "value": "db_conversation_history",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_COSMOSDB_ENABLE_FEEDBACK",
+    "value": "true",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_MANAGED_IDENTITY_ID",
+    "value": "@Microsoft.KeyVault(SecretUri=https://kv-aai-dev-hrpolicyllm-1.vault.azure.net/secrets/azure-managed-identity-id)",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_OPENAI_EMBEDDING_DIMENSIONS",
+    "value": "3072",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_OPENAI_EMBEDDING_NAME",
+    "value": "text-embedding-3-large",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_OPENAI_ENDPOINT",
+    "value": "https://oai-aai-dev-hrpolicyllm-01.openai.azure.com/",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_OPENAI_MAX_TOKENS",
+    "value": "1000",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_OPENAI_MODEL",
+    "value": "gpt-4.1-mini",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_OPENAI_RESOURCE",
+    "value": "oai-aai-dev-hrpolicyllm-01",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_OPENAI_SYSTEM_MESSAGE",
+    "value": "You are a Ministry of Defence AI assistant chatbot whose primary goal is to answer user's questions on MOD documents, Provide concise replies that are polite and professional. Answer questions truthfully based on the documents that you have access to. If you do not know the answer to a question, do not make up a response, but if any documents are available, offer those as potential areas to investigate.",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_OPENAI_TEMPERATURE",
+    "value": "0",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_OPENAI_TOP_P",
+    "value": "1",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_SEARCH_ENABLE_IN_DOMAIN",
+    "value": "True",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_SEARCH_INDEX",
+    "value": "idx-aai-dev-hrpolicyllm-01",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_SEARCH_QUERY_TYPE",
+    "value": "vector_simple_hybrid",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_SEARCH_SERVICE",
+    "value": "srch-aai-dev-hrpolicyllm-01",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_SEARCH_STRICTNESS",
+    "value": "3",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_SEARCH_TOP_K",
+    "value": "5",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_SEARCH_USE_SEMANTIC_SEARCH",
+    "value": "False",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_STORAGE_ACCOUNT_NAME",
+    "value": "storaaidevhrpolicyllm01",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_STORAGE_CONTAINER_NAME",
+    "value": "documents",
+    "slotSetting": false
+  },
+  {
+    "name": "DATASOURCE_TYPE",
+    "value": "azure_search",
+    "slotSetting": false
+  },
+  {
+    "name": "DOCKER_REGISTRY_SERVER_PASSWORD",
+    "value": "@Microsoft.KeyVault(SecretUri=https://kv-aai-dev-hrpolicyllm-1.vault.azure.net/secrets/github-container-registry-secret)",
+    "slotSetting": false
+  },
+  {
+    "name": "DOCKER_REGISTRY_SERVER_URL",
+    "value": "ghcr.io",
+    "slotSetting": false
+  },
+  {
+    "name": "DOCKER_REGISTRY_SERVER_USERNAME",
+    "value": "@Microsoft.KeyVault(SecretUri=https://kv-aai-dev-hrpolicyllm-1.vault.azure.net/secrets/github-container-registry-username)",
+    "slotSetting": false
+  },
+  {
+    "name": "REDIS_HOST",
+    "value": "localhost",
+    "slotSetting": false
+  },
+  {
+    "name": "REDIS_PORT",
+    "value": "6379",
+    "slotSetting": false
+  },
+  {
+    "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
+    "value": "true",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_EXAMPLE_PROMPT_1",
+    "value": "How do I get the best responses from this tool?",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_EXAMPLE_PROMPT_2",
+    "value": "How do I set my development objectives?",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_EXAMPLE_PROMPT_3",
+    "value": "What happens during a coaching session?",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_EXAMPLE_PROMPT_ICON_1",
+    "value": "Lightbulb",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_EXAMPLE_PROMPT_ICON_2",
+    "value": "TextDocument",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_EXAMPLE_PROMPT_ICON_3",
+    "value": "Info",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_KNOWLEDGE_BASE",
+    "value": "TEST",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_SHOW_FEEDBACK",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_SHOW_HISTORY",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_SHOW_SHARE_BUTTON",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_TAB_TITLE",
+    "value": "HR Policy AI Chatbot",
+    "slotSetting": false
+  },
+  {
+    "name": "UI_TITLE",
+    "value": "HR Policy AI Chatbot",
+    "slotSetting": false
+  },
+  {
+    "name": "WEBSITE_HTTPLOGGING_RETENTION_DAYS",
+    "value": "1",
+    "slotSetting": false
+  },
+  {
+    "name": "WEBSITE_WEBDEPLOY_USE_SCM",
+    "value": "false",
+    "slotSetting": false
+  }
+]

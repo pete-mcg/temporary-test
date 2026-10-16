@@ -1,0 +1,13 @@
+[
+  {
+    "Required": true,
+    "Emphasize": false,
+    "Enabled": true,
+    "Name": "hrpolicy_api",
+    "DisplayName": "hrpolicy api",
+    "Description": null,
+    "ShowInDiscoveryDocument": true,
+    "UserClaims": ["name", "email", "fullDisplayName"]
+
+  }
+]

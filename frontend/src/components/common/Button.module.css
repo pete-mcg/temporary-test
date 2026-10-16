@@ -1,0 +1,654 @@
+
+.sidePanelButtonRoot {
+    width: 48px;
+    height: 40px;
+    border-radius: 4px;
+    background: #F2F2F2;
+    padding: 5px 2px;
+    margin-left: 10px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.sidePanelButtonModified {
+    background-color: transparent;
+}
+
+.sidePanelButtonRoot:hover {
+    background: rgb(200, 200, 200);
+}
+
+.sidePanelButtonModified:hover {
+    background-color: rgb(255, 255, 255, 0.2);
+}
+
+.sidePanelButtonRoot span {
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 24px;
+    color: #000000;
+}
+
+.sidePanelButtonRoot i {
+    color: #000000 !important;
+    font-size: 24px !important;
+    margin: 0px 4px;
+    height: 16px !important;
+    line-height: 18px !important;
+}
+
+.sidePanelButtonModified i {
+    color: white !important;
+}
+
+.sidePanelButtonRoot:hover i {
+    color: #000000 !important;
+}
+
+.sidePanelButtonModified:hover i {
+    color: white !important;
+}
+
+.infoButtonRoot {
+    width: 130px;
+    height: 40px;
+    border-radius: 4px;
+    background: #F2F2F2;
+    padding: 5px 2px;
+    margin-left: 10px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.infoButtonRoot:hover {
+    background: rgb(200, 200, 200);
+}
+
+.infoButtonRoot span {
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 24px;
+    color: #000000;
+}
+
+.infoButtonRoot i {
+    color: #000000 !important;
+    font-size: 24px !important;
+    margin: 0px 4px;
+    height: 16px !important;
+    line-height: 18px !important;
+}
+
+.infoButtonRoot:hover i {
+    color: #000000 !important;
+}
+
+.settingsButtonRoot {
+    width: 130px;
+    height: 40px;
+    border-radius: 4px;
+    background: #F2F2F2;
+    padding: 5px 2px;
+    margin-left: 10px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.settingsButtonRoot:hover {
+    background: rgb(200, 200, 200);
+}
+
+.settingsButtonRoot span {
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 24px;
+    color: #000000;
+}
+
+.settingsButtonRoot i {
+    color: #000000 !important;
+    font-size: 24px !important;
+    margin: 0px 4px;
+    height: 16px !important;
+    line-height: 18px !important;
+}
+
+.settingsButtonRoot:hover i {
+    color: #000000 !important;
+}
+
+.shareButtonRoot {
+    width: 130px;
+    height: 40px;
+    border-radius: 4px;
+    background: #F2F2F2;
+    padding: 5px 2px;
+    margin-left: 10px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.shareButtonRoot:hover {
+    background: rgb(200, 200, 200);
+}
+
+.shareButtonRoot span {
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 24px;
+    color: #000000;
+}
+
+.shareButtonRoot i {
+    color: #000000 !important;
+    font-size: 24px !important;
+    margin: 0px 4px;
+    height: 16px !important;
+    line-height: 18px !important;
+}
+
+.shareButtonRoot:hover i {
+    color: #000000 !important;
+}
+
+.historyButtonRoot {
+    width: 130px;
+    height: 40px;
+    border-radius: 4px;
+    background: #F2F2F2;
+    padding: 5px 2px;
+    margin-left: 10px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.historyButtonRoot:hover {
+    background: rgb(200, 200, 200);
+}
+
+.historyButtonRoot span {
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 24px;
+    color: #000000;
+}
+
+.historyButtonRoot i {
+    color: #000000 !important;
+    font-size: 24px !important;
+    margin: 0px 4px;
+    height: 16px !important;
+    line-height: 18px !important;
+}
+
+.historyButtonRoot:hover i {
+    color: #000000 !important;
+}
+
+.feedbackButtonRoot {
+    width: 130px;
+    height: 40px;
+    border-radius: 4px;
+    background: #F2F2F2;
+    padding: 5px 2px;
+    margin-left: 10px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.feedbackButtonRoot:hover {
+    background: rgb(200, 200, 200);
+}
+
+.feedbackButtonRoot span {
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 24px;
+    color: #000000;
+}
+
+.feedbackButtonRoot i {
+    color: #000000 !important;
+    font-size: 24px !important;
+    margin: 0px 4px;
+    height: 16px !important;
+    line-height: 18px !important;
+}
+
+.feedbackButtonRoot:hover i {
+    color: #000000 !important;
+}
+
+.tourButtonRoot {
+    width: 130px;
+    height: 40px;
+    border-radius: 4px;
+    background: #F2F2F2;
+    padding: 5px 2px;
+    margin-left: 10px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.tourButtonRoot:hover {
+    background: rgb(200, 200, 200);
+}
+
+.tourButtonRoot span {
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 24px;
+    color: #000000;
+}
+
+.tourButtonRoot i {
+    color: #000000 !important;
+    font-size: 24px !important;
+    margin: 0px 4px;
+    height: 16px !important;
+    line-height: 18px !important;
+}
+
+.tourButtonRoot:hover i {
+    color: #000000 !important;
+}
+
+.disabled {
+    background: darkgray !important;
+}
+
+.disabled span {
+    color: gray !important;
+}
+
+.settingsActionButtonRoot {
+    border-radius: 4px;
+    background: white;
+    padding: 5px;
+    border: 2px solid black;
+}
+
+.settingsActionButtonRoot:hover {
+    background: lightgray;
+}
+
+.settingsActionButtonRoot span {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 20px;
+    color: black;
+}
+
+.settingsActionButtonRoot i {
+    font-size: 20px !important;
+    color: black !important;
+}
+
+.settingsActionButtonRoot:hover i {
+    color: black !important;
+}
+
+.generalFeedbackButtonRoot {
+    width: 300px;
+    height: auto;
+    border-radius: 4px;
+    background: white;
+    padding: 5px;
+    border: 2px solid black;
+    align-self: center;
+}
+
+.generalFeedbackButtonRoot:hover {
+    background: lightgray;
+}
+
+.generalFeedbackButtonRoot span {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 20px;
+    color: black;
+}
+
+.generalFeedbackButtonRoot i {
+    font-size: 20px !important;
+    color: black !important;
+}
+
+.generalFeedbackButtonRoot:hover i {
+    color: black !important;
+}
+
+.responseFeedbackButtonRoot {
+    width: 300px;
+    height: auto;
+    border-radius: 4px;
+    background: white;
+    padding: 5px;
+    border: 2px solid black;
+    align-self: center;
+}
+
+.responseFeedbackButtonRoot:hover {
+    background: lightgray;
+}
+
+.responseFeedbackButtonRoot span {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 20px;
+    color: black;
+}
+
+.responseFeedbackButtonRoot i {
+    font-size: 20px !important;
+    color: black !important;
+}
+
+.responseFeedbackButtonRoot:hover i {
+    color: black !important;
+}
+
+.reportBugButtonRoot {
+    width: 300px;
+    height: auto;
+    border-radius: 4px;
+    background: white;
+    padding: 5px;
+    border: 2px solid black;
+    align-self: center;
+}
+
+.reportBugButtonRoot:hover {
+    background: lightgray;
+}
+
+.reportBugButtonRoot span {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 20px;
+    color: black;
+}
+
+.reportBugButtonRoot i {
+    font-size: 20px !important;
+    color: black !important;
+}
+
+.reportBugButtonRoot:hover i {
+    color: black !important;
+}
+
+.reportDocumentButtonRoot {
+    width: 300px;
+    height: auto;
+    border-radius: 4px;
+    background: white;
+    padding: 5px;
+    border: 2px solid black;
+    align-self: center;
+}
+
+.reportDocumentButtonRoot:hover {
+    background: lightgray;
+}
+
+.reportDocumentButtonRoot span {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 20px;
+    color: black;
+}
+
+.reportDocumentButtonRoot i {
+    font-size: 20px !important;
+    color: black !important;
+}
+
+.reportDocumentButtonRoot:hover i {
+    color: black !important;
+}
+
+.tryAgainButtonRoot {
+    width: auto;
+    height: auto;
+    border-radius: 4px;
+    background: white;
+    padding: 5px;
+    margin: 10px 0px 0px 0px;
+    align-self: center;
+    border: 1px solid black;
+}
+
+.tryAgainButtonRoot:hover {
+    background: lightgray;
+}
+
+.tryAgainButtonRoot span {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 20px;
+    color: black;
+}
+
+.tryAgainButtonRoot i {
+    font-size: 20px !important;
+    color: black !important;
+}
+
+.tryAgainButtonRoot:hover i {
+    color: black !important;
+}
+
+.docsButtonRoot {
+    border-radius: 4px;
+    background: white;
+    padding: 5px;
+    border: 2px solid black;
+}
+
+.docsButtonRoot:hover {
+    background: lightgray;
+}
+
+.docsButtonRoot span {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 20px;
+    color: black;
+}
+
+.docsButtonRoot i {
+    font-size: 20px !important;
+    color: black !important;
+}
+
+.docsButtonRoot:hover i {
+    color: black !important;
+}
+
+.userGuidanceButtonRoot {
+    border-radius: 4px;
+    background: white;
+    padding: 5px;
+    border: 2px solid black;
+}
+
+.userGuidanceButtonRoot:hover {
+    background: lightgray;
+}
+
+.userGuidanceButtonRoot span {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 20px;
+    color: black;
+}
+
+.userGuidanceButtonRoot i {
+    font-size: 20px !important;
+    color: black !important;
+}
+
+.userGuidanceButtonRoot:hover i {
+    color: black !important;
+}
+
+.actionButtonRoot {
+    border-radius: 4px;
+    background: white;
+    padding: 5px;
+    border: 2px solid black;
+}
+
+.actionButtonRoot:hover {
+    background: lightgray;
+}
+
+.actionButtonRoot span {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 20px;
+    color: black;
+}
+
+.actionButtonRoot i {
+    font-size: 20px !important;
+    color: black !important;
+}
+
+.actionButtonRoot:hover i {
+    color: black !important;
+}
+
+.examplePromptButtonRoot {
+    width: 260px;
+    height: 130px;
+    border: 2px solid rgb(75, 75, 75);
+    border-radius: 30px;
+    background: white;
+    margin-left: 30px;
+    margin-right: 30px;
+    margin: 10px 30px 10px 30px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.examplePromptButtonRoot:hover {
+    background: rgb(200, 200, 200);
+}
+
+.examplePromptButtonRoot span {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 20px;
+    padding: 5px 5px;
+    color: rgb(75, 75, 75);
+    flex-direction: column;
+    height: auto;
+    flex-grow: 0;
+}
+
+.examplePromptButtonRoot i {
+    font-size: 30px !important;
+    height: 30px;
+    line-height: 30px;
+    color: rgb(75, 75, 75) !important;
+    margin-top: 10px;
+}
+
+.examplePromptButtonRoot:hover i {
+    color: rgb(75, 75, 75) !important;
+}
+
+.referenceLinkButtonRoot {
+    width: 100%;
+    border-radius: 4px;
+    border: 4px solid #000000;
+    background: #FFFFFF;
+    padding: 5px 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.referenceLinkButtonRoot:hover {
+    background: rgb(225, 225, 225);
+}
+
+.referenceLinkButtonRoot span {
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 20px;
+    color: #000000;
+}
+
+.referenceLinkButtonRoot i {
+    color: #000000 !important;
+}
+
+.referenceLinkButtonRoot:hover i {
+    color: #000000 !important;
+}
+
+@media (max-width: 600px) {
+    .sidePanelButtonRoot {
+        max-width: 48px;
+        width: auto;
+        padding: 5px 8px;
+    }
+
+    .infoButtonRoot {
+        width: auto;
+        padding: 5px 8px;
+    }
+
+    .settingsButtonRoot {
+        width: auto;
+        padding: 5px 8px;
+    }
+
+    .shareButtonRoot {
+        width: auto;
+        padding: 5px 8px;
+    }
+
+    .historyButtonRoot {
+        width: auto;
+        padding: 5px 8px
+    }
+
+    .feedbackButtonRoot {
+        width: auto;
+        padding: 5px 8px;
+    }
+
+    .tourButtonRoot {
+        width: auto;
+        padding: 5px 8px;
+    }
+
+    .docsButtonRoot {
+        width: auto;
+        padding: 5px 8px;
+    }
+
+    .userGuidanceButtonRoot {
+        width: auto;
+        padding: 5px 8px;
+    }
+}
