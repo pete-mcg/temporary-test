@@ -1,0 +1,1 @@
+Responses about defence, the armed forces or military operations.

@@ -1,0 +1,88 @@
+flowchart TB
+    open_dialog(["User opens annex dialog"])
+    get_mp_list[/"GET /annex/mp_list"/]
+    cosmos_mp[("Azure Cosmos DB<br/>MP data")]
+    mp_options[/"MP drop-down list"/]
+    submit(["User submits MP and question"])
+    chat_tsx["Chat.tsx<br/>onAnnexSubmit()"]
+    post_generate[/"POST /annex/generate"/]
+    annex_route["Quart annex_generate route"]
+    cosmos_conversation[("Azure Cosmos DB<br/>create annex conversation<br/>save user message")]
+    langgraph[["Compiled LangGraph workflow"]]
+
+    get_cosmos_data["get_cosmos_data"]
+    generate_cases_query["generate_cases_query"]
+    mp_data[("Azure Cosmos DB<br/>MP data")]
+    get_hansard_data["get_hansard_data"]
+    get_defence_cases["get_defence_cases"]
+    case_searches["Parallel case searches<br/>get_foi_cases<br/>get_pq_cases<br/>get_mc_cases<br/>get_to_cases"]
+    hansard_index[("Search Hansard index")]
+    core_index[("Search Core index<br/>(i.e. eCase records)")]
+    hansard_results["Hansard search results"]
+    defence_results["Defence case results"]
+    parallel_case_results["Parallel case search results"]
+
+    generate_response["generate_response"]
+    retriever_llm_error{"LangGraph error?"}
+    fallback["Fallback response"]
+    annex_response["LLM response"]
+    response_stream_enabled{"AZURE_OPENAI_STREAM<br/>true?"}
+    json_response[/"JSON response"/]
+    json_lines[/"JSON-lines stream"/]
+    cosmos_save_response[("Azure Cosmos DB<br/>save assistant response<br/>save graph_state")]
+    frontend_render["Chat.tsx renders annex answer"]
+    end_node(["End"])
+
+    open_dialog --> get_mp_list
+    get_mp_list --> cosmos_mp
+    cosmos_mp --> mp_options
+    mp_options --> submit
+    submit --> chat_tsx
+    chat_tsx --> post_generate
+    post_generate --> annex_route
+    annex_route --> cosmos_conversation
+    cosmos_conversation --> langgraph
+
+    langgraph --> get_cosmos_data
+    langgraph --> generate_cases_query
+
+    get_cosmos_data --> mp_data
+    mp_data --> get_hansard_data
+    mp_data --> get_defence_cases
+    get_hansard_data -. searches .-> hansard_index
+    get_defence_cases -. searches .-> core_index
+    hansard_index --> hansard_results
+    core_index --> defence_results
+    hansard_results --> generate_response
+    defence_results --> generate_response
+
+    generate_cases_query -->|query re-written| case_searches
+    case_searches -. searches .-> core_index
+    core_index --> parallel_case_results
+    parallel_case_results --> generate_response
+
+    generate_response --> retriever_llm_error
+    retriever_llm_error -->|yes| fallback
+    retriever_llm_error -->|no| annex_response
+    fallback --> response_stream_enabled
+    annex_response --> response_stream_enabled
+    response_stream_enabled -->|no| json_response
+    response_stream_enabled -->|yes| json_lines
+    json_response --> cosmos_save_response
+    json_lines --> cosmos_save_response
+    cosmos_save_response --> frontend_render
+    frontend_render --> end_node
+
+    classDef actorStyle fill:#B4D7FF,stroke:#64B5F6,stroke-width:2px
+    classDef processStyle fill:#C8E6C9,stroke:#81C784,stroke-width:2px
+    classDef subprocessStyle fill:#FFF9C4,stroke:#FFD54F,stroke-width:2px
+    classDef decisionStyle fill:#FFCCBC,stroke:#FF8A65,stroke-width:2px
+    classDef ioStyle fill:#E1BEE7,stroke:#BA68C8,stroke-width:2px
+    classDef datastoreStyle fill:#F8BBD0,stroke:#F06292,stroke-width:2px
+
+    class open_dialog,submit,end_node actorStyle
+    class chat_tsx,annex_route,get_cosmos_data,generate_cases_query,get_hansard_data,get_defence_cases,case_searches,hansard_results,defence_results,parallel_case_results,generate_response,fallback,annex_response,frontend_render processStyle
+    class langgraph subprocessStyle
+    class retriever_llm_error,response_stream_enabled decisionStyle
+    class get_mp_list,mp_options,post_generate,json_response,json_lines ioStyle
+    class cosmos_mp,cosmos_conversation,mp_data,hansard_index,core_index,cosmos_save_response datastoreStyle

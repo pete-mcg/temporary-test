@@ -1,0 +1,60 @@
+flowchart TB
+    modes[["Applies to: <br/>Related Responses<br/>Policy & Guidance<br/>Evaluate Draft<br/>Ask Anything"]]
+    submit(["User submits question"])
+    chat_send["Chat.tsx onSend"]
+    post_generate[/"POST /history/generate"/]
+    quart["Quart app.py"]
+    cosmos_create_save[("Azure Cosmos DB<br/>create conversation<br/>save user message")]
+    prepare_args[["Prepare model_args"]]
+    select_prompt["Select prompt from backend/prompts/*"]
+    add_extra_text["Add mode-specific extra text"]
+    build_filter["Build Azure Search filter from mode and UI filters"]
+    oyd[["Azure OpenAI<br/>Chat Completions / On Your Data"]]
+    ai_search[("Azure AI Search Core index (i.e. eCase records)")]
+    oyd_context["On Your Data context<br/>citations / intent / retrieved docs"]
+    stream_enabled{"AZURE_OPENAI_STREAM true?"}
+    json_response[/"JSON response"/]
+    json_lines[/"JSON-lines stream"/]
+    render["Chat.tsx renders answer and citations"]
+    post_update[/"POST /history/update"/]
+    cosmos_update_messages[("Azure Cosmos DB<br/>save tool/assistant/error<br/>messages")]
+
+    modes --> submit
+    submit --> chat_send
+    chat_send --> post_generate
+    post_generate --> quart
+    quart --> cosmos_create_save
+    cosmos_create_save --> prepare_args
+    prepare_args --> select_prompt
+    prepare_args --> add_extra_text
+    prepare_args --> build_filter
+    select_prompt --> oyd
+    add_extra_text --> oyd
+    build_filter --> oyd
+    oyd --> ai_search
+    ai_search --> oyd
+    oyd --> oyd_context
+    oyd_context --> oyd
+    oyd --> stream_enabled
+    stream_enabled -->|no| json_response
+    stream_enabled -->|yes| json_lines
+    json_response --> render
+    json_lines --> render
+    render --> post_update
+    post_update --> cosmos_update_messages
+
+    classDef actorStyle fill:#B4D7FF,stroke:#64B5F6,stroke-width:2px
+    classDef processStyle fill:#C8E6C9,stroke:#81C784,stroke-width:2px
+    classDef subprocessStyle fill:#FFF9C4,stroke:#FFD54F,stroke-width:2px
+    classDef decisionStyle fill:#FFCCBC,stroke:#FF8A65,stroke-width:2px
+    classDef ioStyle fill:#E1BEE7,stroke:#BA68C8,stroke-width:2px
+    classDef datastoreStyle fill:#F8BBD0,stroke:#F06292,stroke-width:2px
+    classDef artifactStyle fill:#B2EBF2,stroke:#4DD0E1,stroke-width:2px
+
+    class modes,submit actorStyle
+    class chat_send,quart,prepare_args,select_prompt,add_extra_text,build_filter,render processStyle
+    class oyd subprocessStyle
+    class stream_enabled decisionStyle
+    class post_generate,json_response,json_lines,post_update ioStyle
+    class cosmos_create_save,ai_search,cosmos_update_messages datastoreStyle
+    class oyd_context artifactStyle

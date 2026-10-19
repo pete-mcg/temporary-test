@@ -1,0 +1,162 @@
+name: Main Docker Image CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: GitHub Container Registry Login
+      uses: docker/login-action@v3
+      with:
+        # Container registry username
+        username: ${{ github.actor }}
+        # Container registry password
+        password: ${{ secrets.GITHUB_TOKEN }}
+        # Container registry server url
+        registry: ghcr.io
+        
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Required due to the way Git works, without it this action won't be able to find any or the correct tags
+
+    - name: Get commit SHA
+      id: get_sha
+      run: |
+        echo "SHA: ${{ github.sha }}"
+
+    - name: Check if merge commit
+      id: is_merge_commit
+      run: | 
+        if [[ $(git log -1 ${{ github.sha }} | grep -ci "^Merge") -ge 1 ]]; then
+          echo "This is a merge commit."
+          echo "is_merge_commit=true" >> $GITHUB_OUTPUT 
+        else
+          echo "This is not a merge commit."
+          echo "is_merge_commit=false" >> $GITHUB_OUTPUT 
+        fi
+
+    - name: Extract and compare release_type from merge commit and PR
+      id: extract_release_type
+      run: |
+        # Initialize variables
+        release_type=""
+        merge_release=""
+        pr_release=""
+
+        if [ "${{ steps.is_merge_commit.outputs.is_merge_commit }}" = "true" ]; then  
+          # Get the merge commit message (using the latest commit)
+          MERGE_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          echo "::debug:: Merge commit message: $MERGE_COMMIT_MESSAGE"
+          
+          # Extract release type from merge commit message
+          if echo "$MERGE_COMMIT_MESSAGE" | grep -Piq 'release type\s*:\s*patch'; then
+            merge_release="patch"
+          elif echo "$MERGE_COMMIT_MESSAGE" | grep -Piq 'release type\s*:\s*minor'; then
+            merge_release="minor"
+          elif echo "$MERGE_COMMIT_MESSAGE" | grep -Piq 'release type\s*:\s*major'; then
+            merge_release="major"
+          fi
+          echo "::notice:: Merge commit release type: $merge_release"
+          
+          # Get the associated PR info using the commit SHA
+          PR_INFO=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.groot-preview+json" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/pulls")
+          PR_BODY=$(echo "$PR_INFO" | jq -r '.[0].body')
+          echo "::debug:: PR body: $PR_BODY"
+          
+          # Extract release type from PR body
+          if echo "$PR_BODY" | grep -Piq 'release type\s*:\s*patch'; then
+            pr_release="patch"
+          elif echo "$PR_BODY" | grep -Piq 'release type\s*:\s*minor'; then
+            pr_release="minor"
+          elif echo "$PR_BODY" | grep -Piq 'release type\s*:\s*major'; then
+            pr_release="major"
+          fi
+          echo "::notice:: PR release type: $pr_release"
+          
+          # Compare the two values and issue a warning if they don't match
+          if [ "$merge_release" != "$pr_release" ]; then
+            echo "::warning:: Release type mismatch: merge commit specifies '$merge_release' but PR body specifies '$pr_release'."
+          fi
+          
+          # Use the merge commit's release type if found, else fall back to the PR body value.
+          if [ -n "$merge_release" ]; then
+            release_type="$merge_release"
+          else
+            release_type="$pr_release"
+          fi
+
+        else
+          echo "::notice:: This is not a merge commit. Using the commit message instead."
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          echo "::debug:: Commit message: $COMMIT_MESSAGE"
+          
+          if echo "$COMMIT_MESSAGE" | grep -Piq 'release type\s*:\s*patch'; then
+            release_type="patch"
+          elif echo "$COMMIT_MESSAGE" | grep -Piq 'release type\s*:\s*minor'; then
+            release_type="minor"
+          elif echo "$COMMIT_MESSAGE" | grep -Piq 'release type\s*:\s*major'; then
+            release_type="major"
+          fi
+        fi
+
+        # If still no valid release type, default to patch.
+        if [ -z "$release_type" ]; then
+          echo "::warning:: No valid release type found in merge commit or PR body. Defaulting to 'patch'."
+          release_type="patch"
+        fi
+
+        echo "::notice:: Final release type determined as: $release_type"
+        echo "release_type=$release_type" >> $GITHUB_OUTPUT
+ 
+    - name: 'Get Previous tag'
+      id: previoustag
+      uses: "WyriHaximus/github-action-get-previous-tag@v1"
+      with:
+        fallback: 1.0.0 # Optional fallback tag to use when no tag can be found
+        prefix: v
+
+    - name: 'Get next version'
+      id: semvers
+      uses: "WyriHaximus/github-action-next-semvers@v1"
+      with:
+        version: ${{ steps.previoustag.outputs.tag }}
+
+    - name: Determine version
+      id: VERSION_TYPE
+      run: echo "version_tag=v_${{ steps.extract_release_type.outputs.release_type }}" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      id: create_release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ steps.semvers.outputs[steps.VERSION_TYPE.outputs.version_tag] }}
+        name: Release ${{ steps.semvers.outputs[steps.VERSION_TYPE.outputs.version_tag] }}
+        # Optionally, you can provide a release body. For example:
+        body: |
+          Release created automatically via GitHub Actions.
+          Release type: ${{ steps.extract_release_type.outputs.release_type }}
+        # Set draft or prerelease flags if needed:
+        draft: false
+        prerelease: false
+
+    - name: Set Date and Time
+      id: date_time
+      run: echo "date_time=$(date +'%Y-%m-%d-%H-%M-%S')" >> $GITHUB_OUTPUT
+
+    - name: Build the Docker image
+      run:         
+        docker build . --file WebApp.Dockerfile --tag ghcr.io/${{ github.repository }}:${{ steps.semvers.outputs[steps.VERSION_TYPE.outputs.version_tag] }};
+        docker tag ghcr.io/${{ github.repository }}:${{ steps.semvers.outputs[steps.VERSION_TYPE.outputs.version_tag] }} ghcr.io/${{ github.repository }}:$GITHUB_RUN_NUMBER;
+        docker tag ghcr.io/${{ github.repository }}:${{ steps.semvers.outputs[steps.VERSION_TYPE.outputs.version_tag] }} ghcr.io/${{ github.repository }}:${{ steps.date_time.outputs.date_time }};
+        docker tag ghcr.io/${{ github.repository }}:${{ steps.semvers.outputs[steps.VERSION_TYPE.outputs.version_tag] }} ghcr.io/${{ github.repository }}:latest;
+        docker push ghcr.io/${{ github.repository }}:${{ steps.semvers.outputs[steps.VERSION_TYPE.outputs.version_tag] }};
+        docker push ghcr.io/${{ github.repository }}:$GITHUB_RUN_NUMBER;
+        docker push ghcr.io/${{ github.repository }}:${{ steps.date_time.outputs.date_time }};
+        docker push ghcr.io/${{ github.repository }}:latest;

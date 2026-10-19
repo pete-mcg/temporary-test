@@ -1,0 +1,27 @@
+name: dx4d-dev-environment
+services:
+  identity:
+    image: ghcr.io/desdigital/identity-server:4.0.3
+    ports:
+    - "8080:80"
+    - "8443:443"
+    environment:
+      ASPNETCORE_URLS: "https://+"
+      ASPNETCORE_HTTP_PORT: "80"
+      ASPNETCORE_HTTPS_PORT: "443"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/devcert.pfx"
+      ASPNETCORE_Kestrel__Certificates__Default__Password: "devcert"
+      GeneralSettings__ENABLE_LOCAL_LOGIN: "true"
+      GeneralSettings__DB_CONNECTION_STRING: "Data Source=identity.db"
+      GeneralSettings__DB_INITIALISE_FROM_CONFIG: "true"
+      GeneralSettings__AZURE_MONITOR_CONNECTION_STRING: ""
+      GeneralSettings__SAML_IDP_ROOT_URL: ""
+      GeneralSettings__USERS: "/app/Configuration/TestUsers.json"
+      GeneralSettings__IDENTITY_RESOURCES: "/app/Configuration/IdentityResources.json"
+      GeneralSettings__API_RESOURCES: "/app/Configuration/ApiResources.json"
+      GeneralSettings__API_SCOPES: "/app/Configuration/ApiScopes.json"
+      GeneralSettings__CLIENTS: "/app/Configuration/Clients.json"
+    volumes:
+     - ./IdentityServerConfig:/app/Configuration:ro
+     - ./id_cert.pfx:/https/devcert.pfx:ro

@@ -1,0 +1,43 @@
+name: Development Docker Image CI
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: GitHub Container Registry Login
+      uses: docker/login-action@v3
+      with:
+        # Container registry username
+        username: ${{ github.actor }}
+        # Container registry password
+        password: ${{ secrets.GITHUB_TOKEN }}
+        # Container registry server url
+        registry: ghcr.io
+        
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Required due to the way Git works, without it this action won't be able to find any or the correct tags
+
+    - name: Get commit SHA
+      id: get_sha
+      run: |
+        echo "SHA: ${{ github.sha }}"
+
+    - name: Set Date and Time
+      id: date_time
+      run: echo "date_time=$(date +'%Y-%m-%d-%H-%M-%S')" >> $GITHUB_OUTPUT
+
+    - name: Build the Docker image
+      run:         
+        docker build . --file WebApp.Dockerfile --tag ghcr.io/${{ github.repository }}-development:development;
+        docker tag ghcr.io/${{ github.repository }}-development:development ghcr.io/${{ github.repository }}-development:$GITHUB_RUN_NUMBER;
+        docker tag ghcr.io/${{ github.repository }}-development:development ghcr.io/${{ github.repository }}-development:${{ steps.date_time.outputs.date_time }};
+        docker push ghcr.io/${{ github.repository }}-development:development;
+        docker push ghcr.io/${{ github.repository }}-development:$GITHUB_RUN_NUMBER;
+        docker push ghcr.io/${{ github.repository }}-development:${{ steps.date_time.outputs.date_time }};

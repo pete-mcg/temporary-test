@@ -1,0 +1,13 @@
+[
+  {
+    "Required": true,
+    "Emphasize": false,
+    "Enabled": true,
+    "Name": "dx4dllm_api",
+    "DisplayName": "dx4d api",
+    "Description": null,
+    "ShowInDiscoveryDocument": true,
+    "UserClaims": ["name", "email", "fullDisplayName"]
+
+  }
+]

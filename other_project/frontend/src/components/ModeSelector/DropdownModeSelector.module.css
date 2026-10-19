@@ -1,0 +1,12 @@
+.icon {
+    font-size: 20px;
+}
+
+.title {
+    margin-left: 10px;
+}
+
+.dropdown :global(.ms-Dropdown-title) {
+    border-radius: 4px;
+    border-color: lightgray;
+}

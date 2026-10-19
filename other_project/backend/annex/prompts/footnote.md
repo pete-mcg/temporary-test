@@ -1,0 +1,4 @@
+
+___
+
+<sup>The MP profile brings together information from trusted Defence and parliamentary sources and is designed to provide a helpful overview. All datasets are refreshed at least every 2 weeks. Certain information—such as Service Family Accommodation, site disposals not yet notified, alternative site names, or MP visits undertaken as part of larger groups—may not be captured. For clarity, only a maximum of ten MP’s PQs and MCs, and Debates from the past six months are shown – there may be more. "Position towards Defence" is AI generated based on Hansard information; quotes from MPs can be verified via this <a href="https://hansard.parliament.uk/search/Members">link</a>. While care is taken to present accurate and up‑to‑date information, this AI‑generated profile should be used to support, not replace, professional judgement. Responsibility for final use of the information remains with the user.</sup>

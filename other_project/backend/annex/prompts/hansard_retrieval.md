@@ -1,0 +1,1 @@
+Sentiment towards the UK's Ministry of Defence (MOD).

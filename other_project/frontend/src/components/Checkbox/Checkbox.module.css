@@ -1,0 +1,78 @@
+.checkboxWrapper {
+    display: flex;
+    user-select: none;
+}
+
+.horizontal {
+    flex-direction: row;
+
+    :is(input) {
+        margin-right: 10px;
+    }
+}
+
+.vertical {
+    flex-direction: column;
+    align-items: center;
+}
+
+.checkboxWrapper input {
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+}
+
+.checkboxWrapper {
+    margin-top: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.imageLabelContainer {
+    position: relative;
+    display: inline-block;
+    width: auto;
+    height: 120px;
+}
+
+.checkboxImageUnchecked {
+    width: auto;
+    height: 120px;
+    filter: grayscale(100%) opacity(50%);
+    border-radius: 20px;
+    box-sizing: border-box;
+    border: 5px solid white;
+}
+
+.gpt4oIconUnchecked {
+    filter: grayscale(100%) opacity(24.5%);
+}
+
+.checkboxImageChecked {
+    width: auto;
+    height: 120px;
+    filter: none;
+    border-radius: 20px;
+    box-sizing: border-box;
+    border: 5px solid rgb(75, 75, 75);
+}
+
+.imageLabel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    visibility: hidden;
+    color: rgb(50, 50, 50);
+    font-size: 25px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.imageLabelContainer:hover .checkboxImageChecked {
+    filter: opacity(75%);
+}
+
+.imageLabelContainer:hover .imageLabel {
+    visibility: visible;
+}

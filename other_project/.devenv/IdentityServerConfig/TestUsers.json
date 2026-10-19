@@ -1,0 +1,34 @@
+[
+  {
+    "UserName": "adminuser",
+    "Password": "password",
+    "Email": "testuser@mod.gov.uk",
+    "DisplayName": "Admin User",
+    "FullDisplayName": "Admin User (ORG Team-Section-Role1)"
+  },
+  {
+    "UserName": "regularuser",
+    "Password": "password",
+    "Email": "regularuser@test.com",
+    "DisplayName": "Regular User",
+    "FullDisplayName": "Regular User (ORG Team-Section-Role2)"
+  },
+  {
+    "UserName": "SenorToz",
+    "Password": "password",
+    "Email": "carlos.jackson205@mod.gov.uk",
+    "DisplayName": "Regular User",
+    "FullDisplayName": "Toz, Senor (DES Digital-AAI-DataSci)"
+  },{
+    "UserName": "GoodGuy",
+    "Password": "password",
+    "Email": "good.guy@mod.gov.uk",
+    "DisplayName": "Good Guy",
+    "FullDisplayName": "Guy, Good (DES)"
+  },{
+    "UserName": "BadGuy",
+    "Password": "password",
+    "Email": "bad.guy@mod.gov.uk",
+    "DisplayName": "Bad Guy",
+    "FullDisplayName": "Guy, Bad (DES)"
+  }]

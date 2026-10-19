@@ -1,0 +1,131 @@
+.closeTooltip {
+    display: none;
+    position: fixed;
+    background: white;
+    font-size: 14px;
+    padding: 5px;
+    border: 1px solid black;
+    margin-left: calc(-1 * 12%);
+}
+
+.closeButton {
+    cursor: pointer;
+    position: absolute;
+    right: 20px;
+    top: 10px;
+    padding: 8px 8px 5px;
+}
+
+.showTooltip:hover {
+    .closeTooltip {
+        display: block;
+    }
+}
+
+.closeButton:hover {
+    background-color: lightgray;
+}
+
+.documentButton {
+    display: inline-block;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border: 1px solid black;
+    border-radius: 2px;
+    color: black;
+    padding: 5px;
+    margin-left: 5px;
+}
+
+.documentButton:hover {
+    background: rgb(200, 200, 200);
+}
+
+.list {
+    list-style-type: none;
+    margin: 10px 0 0 0;
+    padding: 0;
+    font-size: 14px;
+
+    :is(li) {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 5px;
+    }
+
+    :is(i) {
+        font-size: 25px;
+        margin-right: 8px;
+        font-weight: bold;
+    }
+
+    :is(b) {
+        margin-right: 5px;
+        flex-shrink: 0;
+        min-width: 143px;
+    }
+}
+
+.callout {
+    display: flex;
+    max-width: 700px;
+    min-width: 700px;
+    justify-content: center;
+    background-color: #f2f2f2;
+    border: 2px solid #686868;
+    border-radius: 10px;
+    padding: 15px;
+
+    .calloutHeadings {
+        margin: 0;
+
+        :is(i) {
+            margin-right: 10px;
+        }
+    }
+
+    :is(p) {
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+.altButtons {
+    gap: 10px;
+}
+
+.confirmationBox {
+    display: flex;
+    background-color: rgb(7, 29, 73);
+    border-radius: 4px;
+    color: white;
+    padding: 10px;
+
+    .checkboxWrapper input {
+        width: 20px !important;
+        height: 20px !important;
+    }
+}
+
+.footer {
+    display: flex;
+    justify-content: end;
+}
+
+@media (max-width: 768px) {
+    .callout {
+        max-width: 100%;
+        min-width: 100%;
+    }
+}
+
+@media (max-width: 425px) {
+    .altButtons {
+        gap: 2px;
+    }
+
+    .altButtons .altButton {
+        min-height: 54px;
+    }
+}

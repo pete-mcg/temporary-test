@@ -1,0 +1,53 @@
+flowchart TB
+    submit(["User submits metadata query"])
+    handle["Chat.tsx handleMetadataSearch"]
+    expand["Expand selected case types<br/>PQ -> PQW/PQO/PQN etc.<br/>MC -> MC/MCSOS/POA"]
+    has_case_type{"At least one case type?"}
+    validation_error[/"Show validation error"/]
+    post_search[/"POST /search_metadata"/]
+    quart_route["Quart app.py"]
+    cosmos_query[("Azure Cosmos DB<br/>save user query")]
+    metadata_returner[["backend/metadata_returner/search_metadata.py"]]
+    parallel_search["Run searches in parallel per case type"]
+    case_filter["Build Azure Search filter<br/>case_type + guidance/date constraints"]
+    ai_search[("Azure AI Search Core index (i.e. eCase records)")]
+    threshold["Apply search score threshold"]
+    dedupe["Deduplicate by case_ref<br/>within each case-type result set"]
+    take_top["Take top N results per case type"]
+    grouped_json[/"Grouped case metadata JSON"/]
+    cosmos_results[("Azure Cosmos DB<br/>save assistant payload")]
+    render["Chat.tsx renders MetadataResults"]
+    end_node(["End"])
+
+    submit --> handle
+    handle --> expand
+    expand --> has_case_type
+    has_case_type -->|no| validation_error
+    has_case_type -->|yes| post_search
+    post_search --> quart_route
+    quart_route --> cosmos_query
+    cosmos_query --> metadata_returner
+    metadata_returner --> case_filter
+    case_filter --> parallel_search
+    parallel_search --> ai_search
+    ai_search --> threshold
+    threshold --> dedupe
+    dedupe --> take_top
+    take_top --> grouped_json
+    grouped_json --> cosmos_results
+    cosmos_results --> render
+    render --> end_node
+
+    classDef actorStyle fill:#B4D7FF,stroke:#64B5F6,stroke-width:2px
+    classDef processStyle fill:#C8E6C9,stroke:#81C784,stroke-width:2px
+    classDef subprocessStyle fill:#FFF9C4,stroke:#FFD54F,stroke-width:2px
+    classDef decisionStyle fill:#FFCCBC,stroke:#FF8A65,stroke-width:2px
+    classDef ioStyle fill:#E1BEE7,stroke:#BA68C8,stroke-width:2px
+    classDef datastoreStyle fill:#F8BBD0,stroke:#F06292,stroke-width:2px
+
+    class submit,end_node actorStyle
+    class handle,expand,quart_route,case_filter,parallel_search,threshold,dedupe,take_top,render processStyle
+    class metadata_returner subprocessStyle
+    class has_case_type decisionStyle
+    class validation_error,post_search,grouped_json ioStyle
+    class cosmos_query,ai_search,cosmos_results datastoreStyle

@@ -1,0 +1,15 @@
+[
+  {
+    "RequireResourceIndicator": false,
+    "ApiSecrets": [],
+    "Scopes": ["dx4dllm_api"],
+    "AllowedAccessTokenSigningAlgorithms": [],
+    "Enabled": true,
+    "Name": "dx4dllm_api",
+    "DisplayName": "DX4D API",
+    "Description": "DX4D Restful Web API",
+    "ShowInDiscoveryDocument": true,
+    "UserClaims": ["name", "email", "fullDisplayName"],
+    "Properties": {}
+  }
+]

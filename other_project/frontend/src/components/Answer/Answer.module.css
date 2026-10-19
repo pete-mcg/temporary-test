@@ -1,0 +1,502 @@
+.answerContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8.1285px;
+    gap: 5.42px;
+    background: #ffffff;
+    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.14), 0px 0px 2px rgba(0, 0, 0, 0.12);
+    border-radius: 5.419px;
+}
+
+/* Clipboard copy styles must be kept in sync — see ClipboardStyles.ts */
+.answerText {
+    font-style: normal;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 20px;
+    color: #323130;
+    flex: none;
+    order: 1;
+    align-self: stretch;
+    flex-grow: 0;
+    margin: 11px;
+    white-space: normal;
+    word-wrap: break-word;
+    max-width: 800px;
+    overflow-x: auto;
+}
+
+/* Markdown table styles */
+/* Base table structure */
+.answerText table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+    border: 1px solid #d1d1d1;
+}
+
+/* Table cells */
+.answerText th,
+.answerText td {
+    border: 1px solid #d1d1d1;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+/* Table headers */
+.answerText th {
+    background-color: #f3f2f1;
+    font-weight: 600;
+    color: #323130;
+}
+
+/* Table zebra striping */
+.answerText tr:nth-child(even) {
+    background-color: #faf9f8;
+}
+
+/* Table row hover state */
+.answerText tr:hover {
+    background-color: #f3f2f1;
+}
+
+/* Markdown blockquotes */
+.answerText blockquote {
+    border-left: 4px solid #d1d1d1;
+    padding: 8px 16px;
+    margin: 16px 0;
+    background-color: #f9f9f9;
+    color: #605e5c;
+    font-style: italic;
+}
+
+/* Markdown heading styles */
+/* H1 */
+.answerText h1 {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 32px;
+    margin: 24px 0 16px 0;
+    color: #323130;
+    border-bottom: 1px solid #e1e1e1;
+    padding-bottom: 8px;
+}
+
+/* H2 */
+.answerText h2 {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 28px;
+    margin: 20px 0 12px 0;
+    color: #323130;
+    border-bottom: 1px solid #f3f2f1;
+    padding-bottom: 6px;
+}
+
+/* H3 */
+.answerText h3 {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 24px;
+    margin: 16px 0 8px 0;
+    color: #323130;
+}
+
+/* H4 */
+.answerText h4 {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 22px;
+    margin: 14px 0 8px 0;
+    color: #323130;
+}
+
+/* H5 */
+.answerText h5 {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    margin: 12px 0 6px 0;
+    color: #323130;
+}
+
+/* H6 */
+.answerText h6 {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    margin: 12px 0 6px 0;
+    color: #605e5c;
+}
+
+/* Markdown code block styles */
+/* Code blocks container */
+.answerText pre {
+    background-color: #f5f5f5;
+    border: 1px solid #d1d1d1;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 16px 0;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 18px;
+}
+
+/* Code inside pre blocks */
+.answerText pre code {
+    background-color: transparent;
+    padding: 0;
+    border: none;
+    font-size: 13px;
+}
+
+/* Markdown inline code styles */
+.answerText code {
+    background-color: #f5f5f5;
+    border: 1px solid #e1e1e1;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    color: #000000;
+}
+
+/* Markdown list styles */
+/* Unordered lists (bullets) */
+.answerText ul {
+    margin: 12px 0;
+    padding-left: 24px;
+    list-style-type: disc;
+}
+
+/* Ordered lists (numbered) */
+.answerText ol {
+    margin: 12px 0;
+    padding-left: 24px;
+    list-style-type: decimal;
+}
+
+/* List items (applies to both ordered and unordered lists) */
+.answerText li {
+    margin: 6px 0;
+    line-height: 20px;
+}
+
+/* Nested unordered lists (circle bullets) */
+.answerText ul ul,
+.answerText ol ul {
+    list-style-type: circle;
+    margin: 4px 0;
+}
+
+/* Third-level nested unordered lists (square bullets) */
+.answerText ul ul ul,
+.answerText ol ul ul,
+.answerText ol ol ul {
+    list-style-type: square;
+}
+
+/* Nested ordered lists (lowercase letters) */
+.answerText ol ol,
+.answerText ul ol {
+    list-style-type: lower-alpha;
+    margin: 4px 0;
+}
+
+/* Markdown link styles */
+/* Default */
+.answerText a {
+    color: #115ea3;
+    text-decoration: none;
+}
+
+/* Hover */
+.answerText a:hover {
+    text-decoration: underline;
+}
+
+/* Visited */
+.answerText a:visited {
+    color: #7c3ea0;
+}
+
+/* Markdown paragraph styles */
+.answerText p {
+    margin: 12px 0;
+    line-height: 20px;
+}
+
+/* Markdown dividing line */
+.answerText hr {
+    border: none;
+    border-top: 1px solid #d1d1d1;
+    margin: 20px 0;
+}
+
+/* Markdown strong/bold text */
+.answerText strong {
+    font-weight: 600;
+    color: #323130;
+}
+
+/* Markdown emphasis/italic text */
+.answerText em {
+    font-style: italic;
+}
+
+/* Markdown strikethrough */
+.answerText del {
+    text-decoration: line-through;
+    color: #605e5c;
+}
+
+/* Superscript */
+.answerText sup {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.answerText sup a {
+    padding: 0;
+}
+
+/* GFM Markdown Tasklists */
+.answerText li:has(input[type='checkbox']) {
+    list-style-type: none;
+}
+
+.answerHeader {
+    position: relative;
+    align-items: center;
+}
+
+.answerFooter {
+    display: flex;
+    flex-flow: row nowrap;
+    width: 100%;
+    height: auto;
+    box-sizing: border-box;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.accordionContainer {
+    flex: 1 !important; /* Each accordion takes an equal portion of the remaining space */
+    border: 1px solid #ccc;
+    border-radius: 0px;
+    background-color: #f9f9f9;
+    box-sizing: border-box;
+    padding: 4px;
+    cursor: pointer;
+}
+
+.accordionContainerSelected {
+    border: 1px solid #ccc;
+    background-color: lightgray;
+    padding: 4px;
+}
+
+.answerDisclaimerContainer {
+    white-space: nowrap;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 8px;
+    order: 2;
+}
+
+.warningIcon {
+    font-style: normal;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 16px;
+    margin-right: 4px;
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: rgb(200, 0, 0);
+}
+
+.answerDisclaimer {
+    font-style: normal;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 16px;
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: rgb(200, 0, 0);
+    flex: none;
+    order: 1;
+    flex-grow: 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
+}
+
+.citationContainer {
+    margin-left: 10px;
+    font-style: normal;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 16px;
+    color: #115ea3;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 4px 6px;
+    gap: 4px;
+    border: 1px solid #d1d1d1;
+    border-radius: 4px;
+}
+
+.citationWarningContainer {
+    margin-left: 10px;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 16px;
+    color: #616161;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 4px 6px;
+    gap: 4px;
+    border: 1px solid #d1d1d1;
+    border-radius: 4px;
+}
+
+.citationContainer:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.citation {
+    box-sizing: border-box;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0px;
+    width: 14px;
+    height: 14px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    flex: none;
+    flex-grow: 0;
+    z-index: 2;
+    font-style: normal;
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 14px;
+    text-align: center;
+    color: #424242;
+    cursor: pointer;
+}
+
+.citation:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.accordionIcon {
+    display: inline-flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 0px;
+    margin-top: 4px;
+    color: #616161;
+    font-size: 10px;
+}
+
+.accordionIcon:hover {
+    cursor: pointer;
+}
+
+.accordionTitle {
+    margin-right: 5px;
+    margin-left: 10px;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 16px;
+    display: flex;
+    align-items: center;
+    color: #616161;
+}
+
+.accordionTitle:hover {
+    cursor: pointer;
+}
+
+.clickableSup {
+    box-sizing: border-box;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0px;
+    width: 14px;
+    height: 14px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    flex: none;
+    order: 2;
+    flex-grow: 0;
+    z-index: 2;
+    font-style: normal;
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 14px;
+    text-align: center;
+    color: #424242;
+    cursor: pointer;
+}
+
+.clickableSup:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.copyAnswerIcon {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    width: 10px;
+    height: 10px;
+    z-index: 1;
+    margin-top: 4px;
+}
+
+.copyAnswerIcon:hover {
+    background-color: transparent;
+    cursor: pointer;
+}
+
+.annexHeader {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-left: 20px;
+    padding-top: 20px;
+    padding-right: 0px;
+    padding-bottom: 0px;
+}
+
+.annexMpImage {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid rgb(143, 68, 204);
+    object-fit: cover;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.annexTitle {
+    font-size: 24px;
+    font-weight: 600;
+    color: #323130;
+    margin: 0;
+}

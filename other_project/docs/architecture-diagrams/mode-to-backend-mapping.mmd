@@ -1,0 +1,83 @@
+flowchart TB
+    select_mode(["User selects mode"])
+    mode{"Mode?"}
+
+    related["related_responses"]
+    related_post[/"POST /history/generate"/]
+    related_backend[["Azure OpenAI On Your Data (app.py + backend/prompts)"]]
+    related_search[("Azure AI Search Core index: case type filter")]
+
+    policy["policy_and_guidance"]
+    policy_post[/"POST /history/generate"/]
+    policy_backend[["Azure OpenAI On Your Data (app.py + backend/prompts)"]]
+    policy_search[("Azure AI Search Core index: guidance filter")]
+
+    evaluate["evaluate_draft"]
+    evaluate_post[/"POST /history/generate"/]
+    evaluate_backend[["Azure OpenAI On Your Data (app.py + backend/prompts)"]]
+    evaluate_search[("Azure AI Search Core index: JSP101 filter")]
+
+    ask_anything["ask_anything"]
+    ask_post[/"POST /history/generate"/]
+    ask_backend[["Azure OpenAI On Your Data (app.py + backend/prompts)"]]
+    ask_search[("Azure AI Search Core index")]
+
+    metadata["metadata_search"]
+    metadata_post[/"POST /search_metadata"/]
+    metadata_backend[["Azure Search Service (backend/metadata_returner)"]]
+    metadata_search_index[("Azure AI Search Core index")]
+
+    annex["information_annex"]
+    annex_routes[/"POST /annex/generate"/]
+    annex_backend[["LangGraph with Azure OpenAI and Azure Search Service (backend/annex)"]]
+    annex_cosmos[("Azure Cosmos DB: MP Data")]
+    annex_core_search[("Azure AI Search Core index")]
+    annex_hansard_search[("Azure AI Search Hansard index")]
+
+    select_mode --> mode
+    mode --> related
+    mode --> policy
+    mode --> evaluate
+    mode --> ask_anything
+    mode --> metadata
+    mode --> annex
+
+    related --> related_post
+    related_post --> related_backend
+    related_backend --> related_search
+
+    policy --> policy_post
+    policy_post --> policy_backend
+    policy_backend --> policy_search
+
+    evaluate --> evaluate_post
+    evaluate_post --> evaluate_backend
+    evaluate_backend --> evaluate_search
+
+    ask_anything --> ask_post
+    ask_post --> ask_backend
+    ask_backend --> ask_search
+
+    metadata --> metadata_post
+    metadata_post --> metadata_backend
+    metadata_backend --> metadata_search_index
+
+    annex --> annex_routes
+    annex_routes --> annex_backend
+    annex_backend --> annex_cosmos
+    annex_backend --> annex_core_search
+    annex_backend --> annex_hansard_search
+
+    classDef actorStyle fill:#B4D7FF,stroke:#64B5F6,stroke-width:2px
+    classDef processStyle fill:#C8E6C9,stroke:#81C784,stroke-width:2px
+    classDef subprocessStyle fill:#FFF9C4,stroke:#FFD54F,stroke-width:2px
+    classDef decisionStyle fill:#FFCCBC,stroke:#FF8A65,stroke-width:2px
+    classDef ioStyle fill:#E1BEE7,stroke:#BA68C8,stroke-width:2px
+    classDef datastoreStyle fill:#F8BBD0,stroke:#F06292,stroke-width:2px
+
+    class select_mode actorStyle
+    class related,policy,evaluate,ask_anything,metadata,annex processStyle
+    class related_backend,policy_backend,evaluate_backend,ask_backend,metadata_backend,annex_backend subprocessStyle
+    class mode decisionStyle
+    class related_post,policy_post,evaluate_post,ask_post,metadata_post,annex_routes ioStyle
+    class related_search,policy_search,evaluate_search,ask_search,metadata_search_index,annex_cosmos,annex_core_search,annex_hansard_search datastoreStyle

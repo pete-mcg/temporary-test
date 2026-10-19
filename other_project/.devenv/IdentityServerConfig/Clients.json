@@ -1,0 +1,89 @@
+[
+  {
+    "Enabled": true,
+    "ClientId": "dx4d_client",
+    "ProtocolType": "oidc",
+    "RequireClientSecret": false,
+    "ClientName": "dx4d_client",
+    "Description": null,
+    "ClientUri": null,
+    "LogoUri": null,
+    "RequireConsent": false,
+    "AllowRememberConsent": true,
+    "AlwaysIncludeUserClaimsInIdToken": true,
+    "RequirePkce": false,
+    "AllowPlainTextPkce": false,
+    "RequireRequestObject": false,
+    "AllowAccessTokensViaBrowser": false,
+    "FrontChannelLogoutUri": "",
+    "FrontChannelLogoutSessionRequired": true,
+    "BackChannelLogoutUri": null,
+    "BackChannelLogoutSessionRequired": true,
+    "AllowOfflineAccess": true,
+    "IdentityTokenLifetime": 60,
+    "AllowedIdentityTokenSigningAlgorithms": [],
+    "AccessTokenLifetime": 3600,
+    "AuthorizationCodeLifetime": 300,
+    "ConsentLifetime": null,
+    "AbsoluteRefreshTokenLifetime": 2592000,
+    "SlidingRefreshTokenLifetime": 1296000,
+    "RefreshTokenUsage": 1,
+    "UpdateAccessTokenClaimsOnRefresh": false,
+    "RefreshTokenExpiration": 1,
+    "AccessTokenType": 0,
+    "EnableLocalLogin": true,
+    "IncludeJwtId": true,
+    "AlwaysSendClientClaims": false,
+    "ClientClaimsPrefix": "client_",
+    "PairWiseSubjectSalt": null,
+    "DeviceCodeLifetime": 300,
+    "AllowedScopes": [
+      "openid",
+      "profile",
+      "dx4dllm_api",
+      "offline_access"
+    ],
+    "RedirectUris": [
+      "http://localhost:3000/callback",
+      "http://localhost:8000/callback",
+      "http://localhost:8000/auth/callback",
+      "http://127.0.0.1:50505/auth/callback",
+      "http://localhost:50505/auth/callback",
+      "http://127.0.0.1:5173/authorise",
+      "http://localhost:5173/authorise"
+    ],
+    "PostLogoutRedirectUris": [
+      "http://localhost:3000/",
+      "http://localhost:8000/",
+      "http://127.0.0.1:50505/",
+      "http://localhost:50505/",
+      "http://127.0.0.1:5173/",
+      "http://localhost:5173/"
+    ],
+    "AllowedGrantTypes": [
+      "authorization_code"
+    ],
+
+    "RequireDPoP": false,
+    "DPoPValidationMode": 1,
+    "DPoPClockSkew": "00:05:00",
+    "IdentityProviderRestrictions": [],
+    "Claims": [],
+    "UserSsoLifetime": null,
+    "UserCodeType": null,
+
+    "CibaLifetime": null,
+    "PollingInterval": null,
+    "CoordinateLifetimeWithUserSession": null,
+    "AllowedCorsOrigins": [
+      "http://localhost:3000",
+      "http://localhost:8000",
+      "http://127.0.0.1:50505",
+      "http://localhost:50505",
+      "http://127.0.0.1:5173",
+      "http://localhost:5173"
+    ],
+    "InitiateLoginUri": null,
+    "Properties": {}
+  }
+]

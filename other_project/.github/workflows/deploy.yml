@@ -1,0 +1,35 @@
+name: 🚀 Deploy
+
+run-name: Deploy to ${{ inputs.environment }} • Tag ${{ inputs.image_ref }}
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '🌍 Select environment to deploy to'
+        required: true
+        type: environment
+      image_ref:
+        description: "🐳 Image ref: <tag> or <image>:<tag>"
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    uses: desdigital/workflow-deploy-azure-appservice-container/.github/workflows/deploy-azure-appservice-container.yml@v1.0.0
+
+    permissions:
+      contents: read
+      packages: read
+
+    with:
+      environment: ${{ inputs.environment }}
+      image_ref: ${{ inputs.image_ref }}
+      health_check_path: /healthz
+      settings_file: .deployment-settings/settings.${{ inputs.environment }}.json
+
+    secrets: inherit
