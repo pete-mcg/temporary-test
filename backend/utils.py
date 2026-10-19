@@ -3,6 +3,7 @@ import json
 import logging
 import requests
 import dataclasses
+from contextlib import aclosing
 from datetime import datetime, timedelta, timezone
 
 import dotenv
@@ -76,8 +77,6 @@ DEBUG = os.environ.get("DEBUG", "false")
 if DEBUG.lower() == "true":
     logging.basicConfig(level=logging.DEBUG)
 
-AZURE_SEARCH_PERMITTED_GROUPS_COLUMN = os.environ.get("AZURE_SEARCH_PERMITTED_GROUPS_COLUMN")
-
 class JSONEncoder(json.JSONEncoder):
     def default(self, o):
         if dataclasses.is_dataclass(o):
@@ -86,8 +85,9 @@ class JSONEncoder(json.JSONEncoder):
 
 async def format_as_ndjson(r):
     try:
-        async for event in r:
-            yield json.dumps(event, cls=JSONEncoder) + "\n"
+        async with aclosing(r):
+            async for event in r:
+                yield json.dumps(event, cls=JSONEncoder) + "\n"
     except Exception as error:
         logging.exception("Exception while generating response stream: %s", error)
         yield json.dumps({"error": str(error)})
@@ -126,7 +126,7 @@ def fetchUserGroups(userToken, nextLink=None):
         return []
 
 
-def generateFilterString(userToken):
+def generateFilterString(userToken: str, permitted_groups_column: str) -> str:
     # Get list of groups user is a member of
     userGroups = fetchUserGroups(userToken)
 
@@ -135,77 +135,7 @@ def generateFilterString(userToken):
         logging.debug("No user groups found")
 
     group_ids = ", ".join([obj['id'] for obj in userGroups])
-    return f"{AZURE_SEARCH_PERMITTED_GROUPS_COLUMN}/any(g:search.in(g, '{group_ids}'))"
-
-def format_non_streaming_response(chatCompletion, history_metadata, message_uuid=None):
-    response_obj = {
-        "id": chatCompletion.id,
-        "model": chatCompletion.model,
-        "created": chatCompletion.created,
-        "object": chatCompletion.object,
-        "choices": [
-            {
-                "messages": []
-            }
-        ],
-        "history_metadata": history_metadata
-    }
-
-    if len(chatCompletion.choices) > 0:
-        message = chatCompletion.choices[0].message
-        if message:
-            if hasattr(message, "context"):
-                response_obj["choices"][0]["messages"].append({
-                    "role": "tool",
-                    "content": json.dumps(message.context),
-                })
-            response_obj["choices"][0]["messages"].append({
-                "role": "assistant",
-                "content": message.content,
-            })
-            return response_obj
-    
-    return {}
-
-def format_stream_response(chatCompletionChunk, history_metadata, message_uuid=None):
-    response_obj = {
-        "id": chatCompletionChunk.id,
-        "model": chatCompletionChunk.model,
-        "created": chatCompletionChunk.created,
-        "object": chatCompletionChunk.object,
-        "choices": [{
-            "messages": []
-        }],
-        "history_metadata": history_metadata
-    }
-
-    if len(chatCompletionChunk.choices) > 0:
-        delta = chatCompletionChunk.choices[0].delta
-        if delta:
-            if hasattr(delta, "context"):
-                messageObj = {
-                    "role": "tool", 
-                    "content": json.dumps(delta.context)
-                }
-                response_obj["choices"][0]["messages"].append(messageObj)
-                return response_obj
-            if delta.role == "assistant" and hasattr(delta, "context"):
-                messageObj = {
-                    "role": "assistant",
-                    "context": delta.context,
-                }
-                response_obj["choices"][0]["messages"].append(messageObj)
-                return response_obj
-            else:
-                if delta.content:
-                    messageObj = {
-                        "role": "assistant",
-                        "content": delta.content,
-                    }
-                    response_obj["choices"][0]["messages"].append(messageObj)
-                    return response_obj
-    
-    return {}
+    return f"{permitted_groups_column}/any(g:search.in(g, '{group_ids}'))"
 
 def download_file(container: str, blob: str) -> bytes:
     """

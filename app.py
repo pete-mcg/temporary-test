@@ -1,10 +1,10 @@
-import copy
-import json
 import os
 import re
 import uuid
 import secrets
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import AsyncExitStack
 from dotenv import load_dotenv
 from backend.logger import logger
 
@@ -23,9 +23,13 @@ from quart import (
 from quart_cors import cors
 from quart_session import Session
 
-from openai import AsyncAzureOpenAI
+from langchain_openai import AzureChatOpenAI
+from pydantic import ValidationError
+from azure.core.credentials import AzureKeyCredential
+from azure.search.documents.aio import SearchClient
 from azure.storage.blob import BlobServiceClient
-from azure.identity.aio import get_bearer_token_provider
+from azure.identity import get_bearer_token_provider
+from azure.identity.aio import get_bearer_token_provider as get_async_bearer_token_provider
 from backend.auth.auth_utils import get_puid
 from backend.auth.credential_helpers import (
     create_async_chained_credential,
@@ -33,17 +37,18 @@ from backend.auth.credential_helpers import (
 )
 from backend.config import Config
 from backend.history.cosmosdbservice import CosmosConversationClient
+from backend.graph.config import RagSettings
+from backend.graph.graph import build_graph
+from backend.graph.invoker import complete_graph, stream_graph
+from backend.graph.state import ChatRequest, ConversationTitle
 
 from backend.services.redis_service import RedisService
 from backend.session.session_manager import SessionManager
 from backend.utils import (
     blob_service_client,
     format_as_ndjson,
-    format_stream_response,
     generateFilterString,
     generate_sas_token,
-    parse_multi_columns,
-    format_non_streaming_response,
     download_file
 )
 
@@ -116,12 +121,14 @@ azure_openai_ready = asyncio.Event()
 redis_ready = asyncio.Event()
 
 config = Config()
+rag_settings = RagSettings()
 
 def create_app():
     app = Quart(__name__)
     app.secret_key = secrets.token_hex(16)
     app.register_blueprint(bp)
     app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.rag_settings = rag_settings
 
     if APP_ENV == "development":
         app = cors(
@@ -142,14 +149,6 @@ def create_app():
             app.cosmos_conversation_client = None
             raise e
 
-        try:
-            app.azure_openai_client = await init_openai_client()
-            azure_openai_ready.set()
-        except Exception as e:
-            logger.exception("Failed to initialize Azure OpenAI client")
-            app.azure_openai_client = None
-            raise e
-
         app.config["SESSION_TYPE"] = "redis"
 
         try:
@@ -164,6 +163,20 @@ def create_app():
             raise e
         
         app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
+
+    @app.while_serving
+    async def graph_services():
+        async with AsyncExitStack() as resources:
+            app.azure_openai_client = await init_openai_client(app.rag_settings, resources)
+            app.search_client = await init_search_client(app.rag_settings, resources)
+            app.chat_graph = build_graph(
+                app.azure_openai_client, app.search_client, app.rag_settings
+            )
+            azure_openai_ready.set()
+            try:
+                yield
+            finally:
+                azure_openai_ready.clear()
     return app
 
 
@@ -195,65 +208,10 @@ async def healthz() -> Response:
 
 USER_AGENT = "GitHubSampleWebApp/AsyncAzureOpenAI/1.0.0"
 
-# RAG Settings
-DATASOURCE_TYPE = os.environ.get("DATASOURCE_TYPE", "azure_search")
-SEARCH_TOP_K = os.environ.get("SEARCH_TOP_K", 5)
-SEARCH_STRICTNESS = os.environ.get("SEARCH_STRICTNESS", 3)
-SEARCH_ENABLE_IN_DOMAIN = os.environ.get("SEARCH_ENABLE_IN_DOMAIN", "true")
-
-# Azure AI Search Settings
-AZURE_SEARCH_SERVICE = os.environ.get("AZURE_SEARCH_SERVICE")
-AZURE_SEARCH_INDEX = os.environ.get("AZURE_SEARCH_INDEX")
-AZURE_SEARCH_KEY = os.environ.get("AZURE_SEARCH_KEY")
-AZURE_SEARCH_USE_SEMANTIC_SEARCH = os.environ.get(
-    "AZURE_SEARCH_USE_SEMANTIC_SEARCH", "false"
-)
-AZURE_SEARCH_SEMANTIC_SEARCH_CONFIG = os.environ.get(
-    "AZURE_SEARCH_SEMANTIC_SEARCH_CONFIG", "default"
-)
-AZURE_SEARCH_TOP_K = os.environ.get("AZURE_SEARCH_TOP_K", SEARCH_TOP_K)
-AZURE_SEARCH_ENABLE_IN_DOMAIN = os.environ.get(
-    "AZURE_SEARCH_ENABLE_IN_DOMAIN", SEARCH_ENABLE_IN_DOMAIN
-)
-AZURE_SEARCH_CONTENT_COLUMNS = os.environ.get("AZURE_SEARCH_CONTENT_COLUMNS")
-AZURE_SEARCH_FILENAME_COLUMN = os.environ.get("AZURE_SEARCH_FILENAME_COLUMN")
-AZURE_SEARCH_TITLE_COLUMN = os.environ.get("AZURE_SEARCH_TITLE_COLUMN")
-AZURE_SEARCH_URL_COLUMN = os.environ.get("AZURE_SEARCH_URL_COLUMN")
-AZURE_SEARCH_VECTOR_COLUMNS = os.environ.get("AZURE_SEARCH_VECTOR_COLUMNS")
-AZURE_SEARCH_QUERY_TYPE = os.environ.get("AZURE_SEARCH_QUERY_TYPE")
-AZURE_SEARCH_PERMITTED_GROUPS_COLUMN = os.environ.get(
-    "AZURE_SEARCH_PERMITTED_GROUPS_COLUMN"
-)
-AZURE_SEARCH_STRICTNESS = os.environ.get("AZURE_SEARCH_STRICTNESS", SEARCH_STRICTNESS)
-
 # Storage Settings
 AZURE_STORAGE_ACCOUNT_KEY = os.environ.get("AZURE_STORAGE_ACCOUNT_KEY")
 AZURE_STORAGE_ACCOUNT_NAME = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
 AZURE_STORAGE_CONTAINER_NAME = os.environ.get("AZURE_STORAGE_CONTAINER_NAME")
-
-# Azure OpenAI Settings
-AZURE_OPENAI_RESOURCE = os.environ.get("AZURE_OPENAI_RESOURCE")
-AZURE_OPENAI_MODEL = os.environ.get(
-    "AZURE_OPENAI_MODEL", "gpt-35-turbo-16k"
-)  # Name of the model, e.g. 'gpt-35-turbo-16k' or 'gpt-4')
-AZURE_OPENAI_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT")
-AZURE_OPENAI_KEY = os.environ.get("AZURE_OPENAI_KEY")
-AZURE_OPENAI_TEMPERATURE = os.environ.get("AZURE_OPENAI_TEMPERATURE", 0)
-AZURE_OPENAI_TOP_P = os.environ.get("AZURE_OPENAI_TOP_P", 1.0)
-AZURE_OPENAI_MAX_TOKENS = os.environ.get("AZURE_OPENAI_MAX_TOKENS", 1000)
-AZURE_OPENAI_STOP_SEQUENCE = os.environ.get("AZURE_OPENAI_STOP_SEQUENCE")
-AZURE_OPENAI_SYSTEM_MESSAGE = os.environ.get(
-    "AZURE_OPENAI_SYSTEM_MESSAGE",
-    "You are an AI assistant that helps people find information.",
-)
-AZURE_OPENAI_PREVIEW_API_VERSION = os.environ.get(
-    "AZURE_OPENAI_PREVIEW_API_VERSION", "2024-10-21"
-)
-AZURE_OPENAI_STREAM = os.environ.get("AZURE_OPENAI_STREAM", "true")
-AZURE_OPENAI_EMBEDDING_ENDPOINT = os.environ.get("AZURE_OPENAI_EMBEDDING_ENDPOINT")
-AZURE_OPENAI_EMBEDDING_KEY = os.environ.get("AZURE_OPENAI_EMBEDDING_KEY")
-AZURE_OPENAI_EMBEDDING_NAME = os.environ.get("AZURE_OPENAI_EMBEDDING_NAME", "")
-SHOULD_STREAM = True if AZURE_OPENAI_STREAM.lower() == "true" else False
 
 # Chat History CosmosDB Settings
 AZURE_COSMOSDB_DATABASE = os.environ.get("AZURE_COSMOSDB_DATABASE")
@@ -290,7 +248,7 @@ frontend_settings = {
         "show_settings": UI_SHOW_SETTINGS,
         "show_feedback": UI_SHOW_FEEDBACK,
         "show_tour": UI_SHOW_TOUR,
-        "default_system_message": AZURE_OPENAI_SYSTEM_MESSAGE,
+        "default_system_message": rag_settings.azure_openai_system_message,
         "show_editable_system_message": UI_SHOW_EDITABLE_SYSTEM_MESSAGE,
         "example_prompt_1": UI_EXAMPLE_PROMPT_1,
         "example_prompt_title_1": UI_EXAMPLE_PROMPT_TITLE_1,
@@ -346,75 +304,63 @@ def list_blob_files(account_name, container_name):
     return database_info
 
 
-def should_use_data():
-    global DATASOURCE_TYPE
-    if AZURE_SEARCH_SERVICE and AZURE_SEARCH_INDEX:
-        DATASOURCE_TYPE = "azure_search"
-        logger.debug("Using Azure Cognitive Search")
-        return True
-    return False
-
-
-SHOULD_USE_DATA = should_use_data()
-
-
-# Initialize Azure OpenAI Client
-async def init_openai_client(request=None, use_data=SHOULD_USE_DATA):
-    azure_openai_client = None
-    try:
-        # Endpoint
-        if not AZURE_OPENAI_ENDPOINT and not AZURE_OPENAI_RESOURCE:
-            raise Exception(
-                "AZURE_OPENAI_ENDPOINT or AZURE_OPENAI_RESOURCE is required"
-            )
-
-        endpoint = (
-            AZURE_OPENAI_ENDPOINT
-            if AZURE_OPENAI_ENDPOINT
-            else f"https://{AZURE_OPENAI_RESOURCE}.openai.azure.com/"
+async def init_openai_client(
+    settings: RagSettings, resources: AsyncExitStack
+) -> AzureChatOpenAI:
+    if not settings.azure_openai_endpoint and not settings.azure_openai_resource:
+        raise ValueError("AZURE_OPENAI_ENDPOINT or AZURE_OPENAI_RESOURCE is required")
+    if not settings.azure_openai_model:
+        raise ValueError("AZURE_OPENAI_MODEL is required")
+    endpoint = settings.azure_openai_endpoint or (
+        f"https://{settings.azure_openai_resource}.openai.azure.com/"
+    )
+    authentication = {}
+    if not settings.azure_openai_key:
+        credential = resources.enter_context(
+            create_sync_chained_credential(settings.azure_managed_identity_id)
         )
-
-        # Authentication
-        aoai_api_key = AZURE_OPENAI_KEY
-        ad_token_provider = None
-        if not aoai_api_key:
-            logger.debug(
-                "No AZURE_OPENAI_KEY found, using chained identity auth with Azure CLI as final fallback"
-            )
-            credential = create_async_chained_credential(AZURE_MANAGED_IDENTITY_ID)
-            ad_token_provider = get_bearer_token_provider(
+        async_credential = await resources.enter_async_context(
+            create_async_chained_credential(settings.azure_managed_identity_id)
+        )
+        authentication = {
+            "azure_ad_token_provider": get_bearer_token_provider(
                 credential, "https://cognitiveservices.azure.com/.default"
-            )
+            ),
+            "azure_ad_async_token_provider": get_async_bearer_token_provider(
+                async_credential, "https://cognitiveservices.azure.com/.default"
+            ),
+        }
 
-        deployment = AZURE_OPENAI_MODEL
-        if not deployment:
-            raise Exception("AZURE_OPENAI_MODEL is required")
+    client = AzureChatOpenAI(
+        azure_endpoint=endpoint,
+        api_version=settings.azure_openai_preview_api_version,
+        api_key=settings.azure_openai_key,
+        model=settings.azure_openai_model,
+        default_headers={"x-ms-useragent": USER_AGENT},
+        stream_usage=False,
+        **authentication,
+    )
+    resources.callback(client.root_client.close)
+    resources.push_async_callback(client.root_async_client.close)
+    return client
 
-        # Default Headers
-        default_headers = {"x-ms-useragent": USER_AGENT}
 
-        if use_data:
-            base_url: str = f"{str(endpoint).rstrip('/')}/openai/deployments/{deployment}"
-            azure_openai_client = AsyncAzureOpenAI(
-                base_url=str(base_url),
-                api_version=AZURE_OPENAI_PREVIEW_API_VERSION,
-                api_key=aoai_api_key,
-                azure_ad_token_provider=ad_token_provider,
-                default_headers=default_headers,
-            )
-        else:
-            azure_openai_client = AsyncAzureOpenAI(
-                api_version=AZURE_OPENAI_PREVIEW_API_VERSION,
-                api_key=aoai_api_key,
-                azure_ad_token_provider=ad_token_provider,
-                default_headers=default_headers,
-                azure_endpoint=endpoint,
-            )
-        return azure_openai_client
-    except Exception as e:
-        logger.exception("Exception in Azure OpenAI initialization", e)
-        azure_openai_client = None
-        raise e
+async def init_search_client(
+    settings: RagSettings, resources: AsyncExitStack
+) -> SearchClient | None:
+    if not settings.search_enabled:
+        return None
+    if settings.azure_search_key:
+        credential = AzureKeyCredential(settings.azure_search_key)
+    else:
+        credential = await resources.enter_async_context(
+            create_async_chained_credential(settings.azure_managed_identity_id)
+        )
+    return await resources.enter_async_context(SearchClient(
+        endpoint=f"https://{settings.azure_search_service}.search.windows.net",
+        index_name=settings.azure_search_index,
+        credential=credential,
+    ))
 
 
 async def init_cosmosdb_client():
@@ -447,207 +393,6 @@ async def init_cosmosdb_client():
     return cosmos_conversation_client
 
 
-def get_configured_data_source(system_message):
-    data_source = {}
-    query_type = "simple"
-    if DATASOURCE_TYPE == "azure_search":
-        # Set query type
-        if AZURE_SEARCH_QUERY_TYPE:
-            query_type = AZURE_SEARCH_QUERY_TYPE
-        elif (
-            AZURE_SEARCH_USE_SEMANTIC_SEARCH.lower() == "true"
-            and AZURE_SEARCH_SEMANTIC_SEARCH_CONFIG
-        ):
-            query_type = "semantic"
-
-        # Set filter
-        filter = None
-        userToken = None
-        if AZURE_SEARCH_PERMITTED_GROUPS_COLUMN:
-            userToken = request.headers.get("X-MS-TOKEN-AAD-ACCESS-TOKEN", "")
-            logger.debug(f"USER TOKEN is {'present' if userToken else 'not present'}")
-            if not userToken:
-                raise Exception(
-                    "Document-level access control is enabled, but user access token could not be fetched."
-                )
-
-            filter = generateFilterString(userToken)
-            logger.debug(f"FILTER: {filter}")
-
-        # Set authentication
-        authentication = {}
-        if AZURE_SEARCH_KEY:
-            authentication = {
-                "type": "api_key",
-                "key": AZURE_SEARCH_KEY
-            }
-        else:
-            # If key is not provided, assume AOAI resource identity has been granted access to the search service
-            authentication = {"type": "system_assigned_managed_identity"}
-
-        data_source = {
-            "type": "azure_search",
-            "parameters": {
-                "endpoint": f"https://{AZURE_SEARCH_SERVICE}.search.windows.net",
-                "authentication": authentication,
-                "index_name": AZURE_SEARCH_INDEX,
-                "fields_mapping": {
-                    "content_fields": (
-                        parse_multi_columns(AZURE_SEARCH_CONTENT_COLUMNS)
-                        if AZURE_SEARCH_CONTENT_COLUMNS
-                        else []
-                    ),
-                    "title_field": (
-                        AZURE_SEARCH_TITLE_COLUMN if AZURE_SEARCH_TITLE_COLUMN else None
-                    ),
-                    "url_field": (
-                        AZURE_SEARCH_URL_COLUMN if AZURE_SEARCH_URL_COLUMN else None
-                    ),
-                    "filepath_field": (
-                        AZURE_SEARCH_FILENAME_COLUMN
-                        if AZURE_SEARCH_FILENAME_COLUMN
-                        else None
-                    ),
-                    "vector_fields": (
-                        parse_multi_columns(AZURE_SEARCH_VECTOR_COLUMNS)
-                        if AZURE_SEARCH_VECTOR_COLUMNS
-                        else []
-                    ),
-                },
-                "in_scope": (
-                    True if AZURE_SEARCH_ENABLE_IN_DOMAIN.lower() == "true" else False
-                ),
-                "top_n_documents": (
-                    int(AZURE_SEARCH_TOP_K) if AZURE_SEARCH_TOP_K else int(SEARCH_TOP_K)
-                ),
-                "query_type": query_type,
-                "semantic_configuration": (
-                    AZURE_SEARCH_SEMANTIC_SEARCH_CONFIG
-                    if AZURE_SEARCH_SEMANTIC_SEARCH_CONFIG
-                    else ""
-                ),
-                "filter": filter,
-                "strictness": (
-                    int(AZURE_SEARCH_STRICTNESS)
-                    if AZURE_SEARCH_STRICTNESS
-                    else int(SEARCH_STRICTNESS)
-                ),
-            },
-        }
-    else:
-        raise Exception(
-            f"DATASOURCE_TYPE is not configured or unknown: {DATASOURCE_TYPE}"
-        )
-
-    if "vector" in query_type.lower() and DATASOURCE_TYPE != "azure_ml_index":
-        embeddingDependency = {}
-        if AZURE_OPENAI_EMBEDDING_NAME:
-            embeddingDependency = {
-                "type": "deployment_name",
-                "deployment_name": AZURE_OPENAI_EMBEDDING_NAME,
-            }
-        elif AZURE_OPENAI_EMBEDDING_ENDPOINT and AZURE_OPENAI_EMBEDDING_KEY:
-            embeddingDependency = {
-                "type": "endpoint",
-                "endpoint": AZURE_OPENAI_EMBEDDING_ENDPOINT,
-                "authentication": {"type": "api_key", "key": AZURE_OPENAI_EMBEDDING_KEY},
-            }
-        else:
-            raise Exception(
-                f"Vector query type ({query_type}) is selected for data source type {DATASOURCE_TYPE} but no embedding dependency is configured"
-            )
-        data_source["parameters"]["embedding_dependency"] = embeddingDependency
-
-    return data_source
-
-
-def prepare_model_args(request_body):
-    # Get settings
-    settings = request_body.get("settings", None)
-
-    if settings:
-        # Get temperature
-        temperature = settings.get("temperature", AZURE_OPENAI_TEMPERATURE)
-
-        # Get system message
-        system_message = settings.get("systemMessage", AZURE_OPENAI_SYSTEM_MESSAGE)
-
-        # Get model
-        if settings.get("models").get("GPT35TURBO"):
-            model = "gpt-35-turbo-16k"
-        if settings.get("models").get("GPT4"):
-            model = "gpt-4-turbo"
-        else:
-            model = AZURE_OPENAI_MODEL
-    else:
-        temperature = AZURE_OPENAI_TEMPERATURE
-        model = AZURE_OPENAI_MODEL
-        system_message = AZURE_OPENAI_SYSTEM_MESSAGE
-
-    request_messages = request_body.get("messages", [])
-    messages = []
-
-    messages = [{"role": "system", "content": system_message}]
-
-    for message in request_messages:
-        if message:
-            messages.append({"role": message["role"], "content": message["content"]})
-
-    model_args = {
-        "messages": messages,
-        "temperature": float(temperature),
-        "max_tokens": int(AZURE_OPENAI_MAX_TOKENS),
-        "top_p": float(AZURE_OPENAI_TOP_P),
-        "stop": (
-            parse_multi_columns(AZURE_OPENAI_STOP_SEQUENCE)
-            if AZURE_OPENAI_STOP_SEQUENCE
-            else None
-        ),
-        "stream": SHOULD_STREAM,
-        "model": model,
-    }
-
-    if SHOULD_USE_DATA:
-        model_args["extra_body"] = {
-            "data_sources": [get_configured_data_source(system_message)]
-        }
-
-    model_args_clean = copy.deepcopy(model_args)
-    if model_args_clean.get("extra_body"):
-        secret_params = [
-            "key",
-            "connection_string",
-            "api_key",
-        ]
-        for secret_param in secret_params:
-            if model_args_clean["extra_body"]["data_sources"][0]["parameters"].get(
-                secret_param
-            ):
-                model_args_clean["extra_body"]["data_sources"][0]["parameters"][
-                    secret_param
-                ] = "*****"
-        authentication = model_args_clean["extra_body"]["data_sources"][0][
-            "parameters"
-        ].get("authentication", {})
-        for field in authentication:
-            if field in secret_params:
-                model_args_clean["extra_body"]["data_sources"][0]["parameters"][
-                    "authentication"
-                ][field] = "*****"
-        embeddingDependency = model_args_clean["extra_body"]["data_sources"][0][
-            "parameters"
-        ].get("embedding_dependency", {})
-        if "authentication" in embeddingDependency:
-            for field in embeddingDependency["authentication"]:
-                if field in secret_params:
-                    model_args_clean["extra_body"]["data_sources"][0]["parameters"][
-                        "embedding_dependency"
-                    ]["authentication"][field] = "*****"
-
-    logger.debug(f"REQUEST BODY: {json.dumps(model_args_clean, indent=4)}")
-
-    return model_args
-
 def nad_query_classifier(messages: list) -> str:
     """
     Classify the query to determine if it's a NAD-related question.
@@ -669,44 +414,48 @@ def nad_query_classifier(messages: list) -> str:
         return "nad_query"
     return "normal"
 
-async def send_chat_request(request):
-    await azure_openai_ready.wait()
-    model_args = prepare_model_args(request)
-
-    try:
-        # make sure azure openai client is configured
-        if not current_app.azure_openai_client:
-            raise Exception("Azure OpenAI client is not configured or not working")
-        response = await current_app.azure_openai_client.chat.completions.create(
-            **model_args
+async def permission_filter(settings: RagSettings) -> str | None:
+    if not settings.search_enabled or not settings.azure_search_permitted_groups_column:
+        return None
+    user_token = request.headers.get("X-MS-TOKEN-AAD-ACCESS-TOKEN", "").strip()
+    if not user_token:
+        raise ValueError(
+            "Document-level access control is enabled, but user access token could not be fetched."
         )
-
-    except Exception as e:
-        logger.exception("Exception in send_chat_request")
-        raise e
-
-    return response
+    return await asyncio.to_thread(
+        generateFilterString, user_token, settings.azure_search_permitted_groups_column
+    )
 
 
-async def complete_chat_request(request_body):
-    response = await send_chat_request(request_body)
-    history_metadata = request_body.get("history_metadata", {})
-
-    return format_non_streaming_response(response, history_metadata)
-
-
-async def stream_chat_request(request_body):
-    response = await send_chat_request(request_body)
-    history_metadata = request_body.get("history_metadata", {})
+async def stream_chat_request(
+    chat_request: ChatRequest, search_filter: str | None
+) -> AsyncIterator[dict[str, object]]:
+    events = stream_graph(
+        current_app.chat_graph, chat_request, current_app.rag_settings, search_filter
+    )
+    # Fetch the first public event while HTTP errors can still set the response status.
+    first_event = await anext(events)
 
     async def generate():
-        async for completionChunk in response:
-            yield format_stream_response(completionChunk, history_metadata)
+        try:
+            yield first_event
+            async for event in events:
+                yield event
+        finally:
+            await events.aclose()
 
     return generate()
 
 
 async def conversation_internal(request_body):
+    history_metadata = (
+        request_body.get("history_metadata", {}) if isinstance(request_body, dict) else {}
+    )
+    try:
+        chat_request = ChatRequest.model_validate(request_body)
+    except ValidationError as ex:
+        return jsonify({"error": str(ex), "history_metadata": history_metadata}), 400
+
     try:
         # NAD classifier intercept
         messages = request_body.get("messages", [])
@@ -714,7 +463,7 @@ async def conversation_internal(request_body):
             history_metadata = request_body.get("history_metadata", {})
             return jsonify({
                 "id": str(uuid.uuid4()),
-                "model": AZURE_OPENAI_MODEL,
+                "model": current_app.rag_settings.azure_openai_model,
                 "created": 0,
                 "object": "chat.completion",
                 "choices": [{
@@ -726,29 +475,26 @@ async def conversation_internal(request_body):
                 "history_metadata": history_metadata,
             })
 
-        if SHOULD_STREAM:
-            result = await stream_chat_request(request_body)
+        await azure_openai_ready.wait()
+        search_filter = await permission_filter(current_app.rag_settings)
+        if current_app.rag_settings.azure_openai_stream:
+            result = await stream_chat_request(chat_request, search_filter)
             response = await make_response(format_as_ndjson(result))
             response.timeout = None
             response.mimetype = "application/json-lines"
             return response
         else:
-            result = await complete_chat_request(request_body)
+            result = await complete_graph(
+                current_app.chat_graph, chat_request, current_app.rag_settings, search_filter
+            )
             return jsonify(result)
 
     except Exception as ex:
-        logger.exception("Exception in conversation_internal:", ex)
-        history_metadata = request_body.get("history_metadata", {})
-        if hasattr(ex, "status_code"):
-            return (
-                jsonify({"error": str(ex), "history_metadata": history_metadata}),
-                ex.status_code,
-            )
-        else:
-            return (
-                jsonify({"error": str(ex), "history_metadata": history_metadata}),
-                500,
-            )
+        logger.exception("Exception in conversation_internal")
+        return (
+            jsonify({"error": str(ex), "history_metadata": history_metadata}),
+            getattr(ex, "status_code", None) or 500,
+        )
 
 
 @bp.route("/conversation", methods=["POST"])
@@ -1337,12 +1083,12 @@ async def generate_title(conversation_messages):
         # make sure azure openai client is configured
         if not current_app.azure_openai_client:
             raise Exception("Azure OpenAI client is not configured or not working")
-        response = await current_app.azure_openai_client.chat.completions.create(
-            model=AZURE_OPENAI_MODEL, messages=messages, temperature=1, max_tokens=64
+        response = await current_app.azure_openai_client.ainvoke(
+            messages, model=current_app.rag_settings.azure_openai_model,
+            temperature=1, max_tokens=64, stream=False
         )
 
-        title = json.loads(response.choices[0].message.content)["title"]
-        return title
+        return ConversationTitle.model_validate_json(response.text).title
     except Exception as e:
         return messages[-2]["content"]
     

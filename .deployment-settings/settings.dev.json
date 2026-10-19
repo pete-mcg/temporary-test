@@ -135,11 +135,6 @@
     "slotSetting": false
   },
   {
-    "name": "AZURE_SEARCH_STRICTNESS",
-    "value": "3",
-    "slotSetting": false
-  },
-  {
     "name": "AZURE_SEARCH_TOP_K",
     "value": "5",
     "slotSetting": false
@@ -157,11 +152,6 @@
   {
     "name": "AZURE_STORAGE_CONTAINER_NAME",
     "value": "documents",
-    "slotSetting": false
-  },
-  {
-    "name": "DATASOURCE_TYPE",
-    "value": "azure_search",
     "slotSetting": false
   },
   {

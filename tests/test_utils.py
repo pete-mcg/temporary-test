@@ -27,3 +27,19 @@ def test_parse_multi_columns():
     assert parse_multi_columns(test_pipes) == ["col1", "col2", "col3"]
     assert parse_multi_columns(test_commas) == ["col1", "col2", "col3"]
     assert parse_multi_columns(test_single) == ["col1"]
+
+
+@pytest.mark.asyncio
+async def test_format_as_ndjson_closes_source():
+    closed = []
+
+    async def source():
+        try:
+            yield {"message": "test"}
+        finally:
+            closed.append(True)
+
+    events = format_as_ndjson(source())
+    await anext(events)
+    await events.aclose()
+    assert closed == [True]
