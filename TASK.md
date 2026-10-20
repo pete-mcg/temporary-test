@@ -10,11 +10,11 @@ Currently I lack the visibility to know when my chatbot is performing as it shou
 
 # Objective
 
-I am aware that in Microsoft Foundry, it is possible to view conversation traces from a chatbot. There is the `langchain-azure-ai` package, which can emit OpenTelemetry traces from LangChain and LangGraph applications and sink them in Azure Application Insights, by using `AzureAIOpenTelemetryTracer`.
+I am aware that in Microsoft Foundry Countr Pane, it is possible to view conversation traces from a chatbot. I would like to use the `microsoft-opentelemetry` package.
 
-I am happy to redeploy an equivalent OpenAI model within Microsoft Foundry.
+I am happy to redeploy an equivalent OpenAI model within Microsoft Foundry, if needed.
 
-The existing, basic Telemetry within this application does not necessarily need to be retained. It was written a long time ago by inexperienced developers, and we are very open to removing it.
+The existing, basic Telemetry within this application does not necessarily need to be retained. It was written a long time ago by inexperienced developers, and I am very open to removing it if it is going to result in conflicts.
 
 # Task
 
