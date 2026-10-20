@@ -1,6 +1,6 @@
 # Contributing
 
-This repo contains the code for a simple RAG chat webapp that integrates with Azure services. It uses Azure OpenAI On Your Data.
+This repo contains the code for a simple RAG chat webapp that integrates with Azure services.
 
 # Contributing
 
