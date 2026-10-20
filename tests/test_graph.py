@@ -6,7 +6,7 @@ import pytest
 
 from backend.graph.config import RagSettings, SearchQueryType
 from backend.graph.graph import build_graph
-from backend.graph.invoker import complete_graph, stream_graph
+from backend.graph.invoker import complete_graph, invocation_config, stream_graph
 from backend.graph.nodes.generate_response import INSUFFICIENT_INFORMATION
 from backend.graph.state import ChatRequest
 
@@ -74,16 +74,95 @@ async def test_follow_up_excludes_stored_tools(model, model_api, search, setting
 
 
 @pytest.mark.parametrize("failure", ["empty", "api"])
-async def test_rewrite_fallback(failure, model, model_api, search, settings):
+async def test_rewrite_fallback(
+    failure, traced_graph, span_exporter, model_api, search, settings
+):
     model_api.rewrite = "  "
     model_api.rewrite_error = failure == "api"
     request = chat_request()
-    result = await complete_graph(
-        build_graph(model, search, settings), request, settings
-    )
+    result = await complete_graph(traced_graph, request, settings)
     assert search.calls[0]["search_text"] == request.messages[-1].content
     assert json.loads(result["choices"][0]["messages"][0]["content"])["intent"] == (
         request.messages[-1].content
+    )
+    spans = span_exporter.get_finished_spans()
+    root = next(span for span in spans if span.parent is None)
+    assert root.status.status_code.name == "OK"
+    errors = [span for span in spans if span.status.status_code.name == "ERROR"]
+    assert len(errors) == (1 if failure == "api" else 0)
+
+
+@pytest.mark.parametrize("streaming", [True, False])
+@pytest.mark.parametrize("empty_results", [True, False])
+async def test_conversation_traces(
+    traced_graph, span_exporter, model_api, search, settings, streaming, empty_results
+):
+    if empty_results:
+        search.documents = []
+    request = chat_request()
+    if streaming:
+        events = [
+            event async for event in stream_graph(traced_graph, request, settings)
+        ]
+    else:
+        events = [await complete_graph(traced_graph, request, settings)]
+    messages = [
+        message for event in events for message in event["choices"][0]["messages"]
+    ]
+    expected = INSUFFICIENT_INFORMATION if empty_results else model_api.answer
+    assert "".join(message["content"] for message in messages[1:]) == expected
+    assert all(
+        event["history_metadata"] == request.history_metadata for event in events
+    )
+
+    spans = span_exporter.get_finished_spans()
+    root = next(span for span in spans if span.parent is None)
+    assert root.attributes["gen_ai.agent.name"] == "hr-chatbot"
+    state = json.loads(root.attributes["gen_ai.agent.state"])
+    assert state["query"] == model_api.rewrite and state["answer"] == expected
+    assert len(state["citations"]) == len(
+        json.loads(messages[0]["content"])["citations"]
+    )
+    assert {span.attributes.get("metadata.langgraph_node") for span in spans} >= {
+        "rewrite_query",
+        "retrieve_documents",
+        "generate_response",
+    }
+    for span in spans:
+        assert span.status.status_code.name == "OK"
+        assert span.context.trace_id == root.context.trace_id
+        assert span.attributes["gen_ai.conversation.id"] == "conversation-id"
+        assert span.end_time >= span.start_time
+    models = [
+        span for span in spans if span.attributes["gen_ai.operation.name"] == "chat"
+    ]
+    assert len(models) == (1 if empty_results else 2)
+    for span in models:
+        assert span.attributes["gen_ai.usage.input_tokens"] == 10
+        assert span.attributes["gen_ai.usage.output_tokens"] == 5
+        assert request.messages[-1].content in span.attributes["gen_ai.input.messages"]
+    if not empty_results:
+        assert search.documents[0]["content"] in json.dumps(state["citations"])
+        answer = models[-1]
+        assert (
+            search.documents[0]["content"] in answer.attributes["gen_ai.input.messages"]
+        )
+        assert model_api.answer in answer.attributes["gen_ai.output.messages"]
+
+
+@pytest.mark.parametrize("conversation_id", [None, "", "   ", 123])
+async def test_unavailable_conversation_id(conversation_id):
+    request = chat_request(history_metadata={"conversation_id": conversation_id})
+    assert invocation_config(request) == {}
+    assert invocation_config(chat_request(history_metadata={})) == {}
+
+
+async def test_tracing_connection_string_setting(monkeypatch):
+    monkeypatch.setenv(
+        "APPLICATIONINSIGHTS_CONNECTION_STRING", "test-connection-string"
+    )
+    assert RagSettings(_env_file=None).applicationinsights_connection_string == (
+        "test-connection-string"
     )
 
 
@@ -167,9 +246,9 @@ async def test_column_mappings_and_permission_filter(model, search, settings):
 
 
 async def test_stream_matches_complete_and_hides_rewrite(
-    model, model_api, search, settings
+    traced_graph, span_exporter, model_api, settings
 ):
-    graph = build_graph(model, search, settings)
+    graph = traced_graph
     request = chat_request()
     events = [event async for event in stream_graph(graph, request, settings)]
     result = await complete_graph(graph, request, settings)
@@ -189,6 +268,13 @@ async def test_stream_matches_complete_and_hides_rewrite(
     )
     assert model_api.calls[0].get("stream") is False
     assert model_api.calls[1]["stream"] is True
+    assert model_api.calls[1]["stream_options"] == {"include_usage": True}
+    roots = [span for span in span_exporter.get_finished_spans() if span.parent is None]
+    assert len(roots) == 2
+    assert len({span.context.trace_id for span in roots}) == 2
+    assert {span.attributes["gen_ai.conversation.id"] for span in roots} == {
+        "conversation-id"
+    }
 
 
 @pytest.mark.parametrize("in_domain", [True, False])
@@ -241,12 +327,27 @@ async def test_plain_chat_and_request_generation_settings(model, model_api, sett
     assert call["stop"] == ["END", "STOP"]
 
 
-async def test_request_isolation(model, model_api, search, settings):
+@pytest.mark.parametrize("streaming", [True, False])
+async def test_request_isolation(
+    traced_graph, span_exporter, model_api, search, settings, streaming
+):
     model_api.rewrite = None
-    graph = build_graph(model, search, settings)
+    graph = traced_graph
 
     async def run(question, temperature):
-        request = chat_request(question, settings={"temperature": temperature})
+        request = chat_request(
+            question,
+            settings={"temperature": temperature},
+            history_metadata={"conversation_id": question},
+        )
+        if streaming:
+            events = [
+                event
+                async for event in stream_graph(
+                    graph, request, settings, f"groups eq '{question}'"
+                )
+            ]
+            return events[0]
         return await complete_graph(graph, request, settings, f"groups eq '{question}'")
 
     first, second = await asyncio.gather(
@@ -268,6 +369,19 @@ async def test_request_isolation(model, model_api, search, settings):
         for result in (first, second)
     ]
     assert intents == ["First question", "Second question"]
+    spans = span_exporter.get_finished_spans()
+    roots = [span for span in spans if span.parent is None]
+    assert len(roots) == 2
+    assert len({span.context.trace_id for span in roots}) == 2
+    for root in roots:
+        conversation_id = root.attributes["gen_ai.conversation.id"]
+        state = json.loads(root.attributes["gen_ai.agent.state"])
+        assert state["messages"][0]["content"] == conversation_id
+        assert all(
+            span.attributes["gen_ai.conversation.id"] == conversation_id
+            for span in spans
+            if span.context.trace_id == root.context.trace_id
+        )
 
 
 async def test_rag_preserves_effective_deployment(model, model_api, search, settings):
@@ -296,21 +410,34 @@ async def test_legacy_search_settings(monkeypatch):
 
 
 async def test_stream_errors_before_and_after_first_event(
-    model, model_api, search, settings
+    traced_graph, span_exporter, model_api, search, settings
 ):
     search.error = RuntimeError("search unavailable")
-    graph = build_graph(model, search, settings)
+    graph = traced_graph
     with pytest.raises(RuntimeError, match="search unavailable"):
         await anext(stream_graph(graph, chat_request(), settings))
+    assert any(
+        span.attributes.get("metadata.langgraph_node") == "retrieve_documents"
+        and span.status.status_code.name == "ERROR"
+        for span in span_exporter.get_finished_spans()
+    )
+    span_exporter.clear()
     search.error = None
     model_api.answer_error = True
     events = [event async for event in stream_graph(graph, chat_request(), settings)]
     assert len(events) == 2 and "model unavailable" in events[-1]["error"]
     assert events[0]["id"] == events[-1]["id"]
     assert events[0]["history_metadata"] == events[-1]["history_metadata"]
+    assert any(
+        span.attributes["gen_ai.operation.name"] == "chat"
+        and span.status.status_code.name == "ERROR"
+        for span in span_exporter.get_finished_spans()
+    )
 
 
-async def test_cancellation_reaches_search(model, search, settings):
+async def test_cancellation_reaches_search(
+    traced_graph, span_exporter, search, settings
+):
     started = asyncio.Event()
     cancelled = asyncio.Event()
 
@@ -323,10 +450,15 @@ async def test_cancellation_reaches_search(model, search, settings):
             raise
 
     search.search = AsyncMock(side_effect=waiting_search)
-    graph = build_graph(model, search, settings)
+    graph = traced_graph
     task = asyncio.create_task(anext(stream_graph(graph, chat_request(), settings)))
     await asyncio.wait_for(started.wait(), timeout=5)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
     assert cancelled.is_set()
+    assert any(
+        span.attributes.get("metadata.langgraph_node") == "retrieve_documents"
+        and span.status.status_code.name == "ERROR"
+        for span in span_exporter.get_finished_spans()
+    )

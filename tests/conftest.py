@@ -1,13 +1,19 @@
 import asyncio
+import importlib
 import json
 from dataclasses import dataclass, field
 
 import httpx
 import pytest
 import pytest_asyncio
+from langchain_azure_ai.callbacks.tracers import AzureAIOpenTelemetryTracer
 from langchain_openai import AzureChatOpenAI
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from backend.graph.config import RagSettings
+from backend.graph.graph import build_graph
 
 
 @dataclass
@@ -49,8 +55,9 @@ class ModelApi:
                 }
             ],
         }
+        usage = {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
         if not body.get("stream"):
-            return httpx.Response(200, json=response)
+            return httpx.Response(200, json={**response, "usage": usage})
         events = []
         for token in (text[:8], text[8:]):
             chunk = {
@@ -63,6 +70,14 @@ class ModelApi:
                         "finish_reason": None,
                     }
                 ],
+            }
+            events.append(f"data: {json.dumps(chunk)}\n\n")
+        if body.get("stream_options", {}).get("include_usage"):
+            chunk = {
+                **response,
+                "object": "chat.completion.chunk",
+                "choices": [],
+                "usage": usage,
             }
             events.append(f"data: {json.dumps(chunk)}\n\n")
         events.append("data: [DONE]\n\n")
@@ -103,6 +118,7 @@ class SearchApi:
 def settings():
     return RagSettings(
         _env_file=None,
+        applicationinsights_connection_string=None,
         azure_openai_endpoint="https://openai.example/",
         azure_openai_key="test-key",
         azure_openai_model="chat",
@@ -128,7 +144,7 @@ async def model(model_api, settings):
             api_key=settings.azure_openai_key,
             model=settings.azure_openai_model,
             http_async_client=http,
-            stream_usage=False,
+            stream_usage=True,
             max_retries=0,
         )
         try:
@@ -141,3 +157,43 @@ async def model(model_api, settings):
 @pytest.fixture
 def search():
     return SearchApi()
+
+
+@pytest.fixture
+def app_module(monkeypatch):
+    environment = {
+        "REDIS_HOST": "localhost",
+        "REDIS_PORT": "6379",
+        "AUTH_ENABLED": "false",
+        "AUTH_HOST": "https://identity.example",
+        "AUTH_CLIENT_ID": "test",
+        "AUTH_CLIENT_SECRET": "test",
+        "AUTH_SCOPE": "openid",
+        "AUTH_REDIRECT_URI": "https://app.example/callback",
+        "AUTH_VERIFY_SSL": "true",
+        "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
+    }
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
+    return importlib.import_module("app")
+
+
+@pytest.fixture
+def span_exporter(monkeypatch):
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    monkeypatch.setattr("opentelemetry.trace.get_tracer_provider", lambda: provider)
+    monkeypatch.setattr(AzureAIOpenTelemetryTracer, "_azure_monitor_configured", False)
+    yield exporter
+    provider.shutdown()
+
+
+@pytest.fixture
+def traced_graph(app_module, model, search, settings, span_exporter):
+    return app_module.configure_graph_tracing(
+        build_graph(model, search, settings),
+        settings.model_copy(
+            update={"applicationinsights_connection_string": "test-connection-string"}
+        ),
+    )

@@ -1,4 +1,3 @@
-import importlib
 import json
 import time
 from contextlib import AsyncExitStack
@@ -14,24 +13,6 @@ from backend.history.cosmosdbservice import CosmosConversationClient
 from backend.utils import generateFilterString
 
 pytestmark = pytest.mark.asyncio
-
-
-@pytest.fixture
-def app_module(monkeypatch):
-    environment = {
-        "REDIS_HOST": "localhost",
-        "REDIS_PORT": "6379",
-        "AUTH_ENABLED": "false",
-        "AUTH_HOST": "https://identity.example",
-        "AUTH_CLIENT_ID": "test",
-        "AUTH_CLIENT_SECRET": "test",
-        "AUTH_SCOPE": "openid",
-        "AUTH_REDIRECT_URI": "https://app.example/callback",
-        "AUTH_VERIFY_SSL": "true",
-    }
-    for name, value in environment.items():
-        monkeypatch.setenv(name, value)
-    return importlib.import_module("app")
 
 
 @pytest.fixture
@@ -365,6 +346,7 @@ async def test_clients_authentication_and_shutdown(
         )
         async with AsyncExitStack() as resources:
             model = await app_module.init_openai_client(settings, resources)
+            assert model.stream_usage is True
             await app_module.init_search_client(settings, resources)
             response = await model.ainvoke(
                 [("user", "Question")], model="selected-deployment", stream=False
@@ -388,9 +370,15 @@ async def test_clients_authentication_and_shutdown(
     assert "/deployments/selected-deployment/" in model_api.urls[0]
 
 
+@pytest.mark.parametrize(
+    "connection_string", [None, "", "   ", "test-connection-string"]
+)
 async def test_graph_built_once_at_startup(
-    application, app_module, search, monkeypatch
+    application, app_module, search, monkeypatch, span_exporter, connection_string
 ):
+    application.rag_settings = application.rag_settings.model_copy(
+        update={"applicationinsights_connection_string": connection_string}
+    )
     monkeypatch.setattr(
         app_module, "init_cosmosdb_client", AsyncMock(return_value=None)
     )
@@ -408,6 +396,8 @@ async def test_graph_built_once_at_startup(
     )
     builder = MagicMock(wraps=build_graph)
     monkeypatch.setattr(app_module, "build_graph", builder)
+    tracer_factory = MagicMock(wraps=app_module.AzureAIOpenTelemetryTracer)
+    monkeypatch.setattr(app_module, "AzureAIOpenTelemetryTracer", tracer_factory)
     async with application.test_app() as running:
         client = running.test_client()
         for _ in range(2):
@@ -415,6 +405,19 @@ async def test_graph_built_once_at_startup(
             assert response.status_code == 200
         assert app_module.azure_openai_ready.is_set()
         builder.assert_called_once()
+        if connection_string and connection_string.strip():
+            tracer_factory.assert_called_once_with(
+                connection_string=connection_string,
+                name="hr-chatbot",
+                enable_content_recording=True,
+                trace_all_langgraph_nodes=True,
+                trace_state=True,
+            )
+            assert len(application.chat_graph.config["callbacks"]) == 1
+            assert span_exporter.get_finished_spans()
+        else:
+            tracer_factory.assert_not_called()
+            assert not span_exporter.get_finished_spans()
     assert not app_module.azure_openai_ready.is_set()
 
 

@@ -6,7 +6,12 @@
   },
   {
     "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
-    "value": "~3",
+    "value": "disabled",
+    "slotSetting": true
+  },
+  {
+    "name": "OTEL_SERVICE_NAME",
+    "value": "hr-chatbot",
     "slotSetting": true
   },
   {

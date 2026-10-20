@@ -7,6 +7,7 @@ from contextlib import aclosing
 from dataclasses import dataclass, field
 
 from langchain_core.messages import AIMessage, AIMessageChunk
+from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 
 from backend.graph.config import RagSettings
@@ -79,6 +80,13 @@ def citation_message(citations: list[Citation], query: str) -> dict[str, str]:
     }
 
 
+def invocation_config(request: ChatRequest) -> RunnableConfig:
+    conversation_id = request.history_metadata.get("conversation_id")
+    if isinstance(conversation_id, str) and conversation_id.strip():
+        return {"metadata": {"thread_id": conversation_id}}
+    return {}
+
+
 async def complete_graph(
     graph: CompiledStateGraph,
     request: ChatRequest,
@@ -86,7 +94,9 @@ async def complete_graph(
     search_filter: str | None = None,
 ) -> dict[str, object]:
     state = prepare_state(request, settings, search_filter)
-    result = GraphState.model_validate(await graph.ainvoke(state.model_dump()))
+    result = GraphState.model_validate(
+        await graph.ainvoke(state.model_dump(), config=invocation_config(request))
+    )
     messages = []
     if settings.search_enabled:
         messages.append(citation_message(result.citations, result.query))
@@ -106,7 +116,11 @@ async def stream_graph(
     query = state.question
     emitted_event = False
     streamed_answer = False
-    events = graph.astream(state.model_dump(), stream_mode=["messages", "updates"])
+    events = graph.astream(
+        state.model_dump(),
+        config=invocation_config(request),
+        stream_mode=["messages", "updates"],
+    )
     try:
         async with aclosing(events):
             async for mode, data in events:

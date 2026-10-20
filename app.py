@@ -24,6 +24,8 @@ from quart_cors import cors
 from quart_session import Session
 
 from langchain_openai import AzureChatOpenAI
+from langchain_azure_ai.callbacks.tracers import AzureAIOpenTelemetryTracer
+from langgraph.graph.state import CompiledStateGraph
 from pydantic import ValidationError
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents.aio import SearchClient
@@ -63,12 +65,6 @@ bp = Blueprint("routes", __name__, static_folder="static", template_folder="stat
 
 load_dotenv()
 
-from azure.monitor.opentelemetry import configure_azure_monitor
-from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-
-RequestsInstrumentor().instrument()
-
 AZURE_MANAGED_IDENTITY_ID = os.environ.get("AZURE_MANAGED_IDENTITY_ID")
 
 # UI configuration
@@ -105,15 +101,6 @@ UI_EXAMPLE_PROMPT_TITLE_3 = os.environ.get(
 UI_EXAMPLE_PROMPT_ICON_3 = os.environ.get("UI_EXAMPLE_PROMPT_ICON_3")
 
 APP_ENV = os.environ.get("APP_ENV")
-
-# Application Insights Settings
-AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING = os.environ.get("AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING")
-
-if AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING:
-    configure_azure_monitor(
-        connection_string=AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING,
-        sampling_ratio=1.0
-    )
 
 cosmos_db_ready = asyncio.Event()
 table_storage_ready = asyncio.Event()
@@ -162,8 +149,6 @@ def create_app():
             logger.exception("Failed to initialize Redis client")
             raise e
         
-        app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
-
     @app.while_serving
     async def graph_services():
         async with AsyncExitStack() as resources:
@@ -172,6 +157,7 @@ def create_app():
             app.chat_graph = build_graph(
                 app.azure_openai_client, app.search_client, app.rag_settings
             )
+            app.chat_graph = configure_graph_tracing(app.chat_graph, app.rag_settings)
             azure_openai_ready.set()
             try:
                 yield
@@ -304,6 +290,22 @@ def list_blob_files(account_name, container_name):
     return database_info
 
 
+def configure_graph_tracing(
+    graph: CompiledStateGraph, settings: RagSettings
+) -> CompiledStateGraph:
+    connection_string = (settings.applicationinsights_connection_string or "").strip()
+    if not connection_string:
+        return graph
+    tracer = AzureAIOpenTelemetryTracer(
+        connection_string=connection_string,
+        name="hr-chatbot",
+        enable_content_recording=True,
+        trace_all_langgraph_nodes=True,
+        trace_state=True,
+    )
+    return graph.with_config(callbacks=[tracer], run_name="hr-chatbot")
+
+
 async def init_openai_client(
     settings: RagSettings, resources: AsyncExitStack
 ) -> AzureChatOpenAI:
@@ -337,7 +339,7 @@ async def init_openai_client(
         api_key=settings.azure_openai_key,
         model=settings.azure_openai_model,
         default_headers={"x-ms-useragent": USER_AGENT},
-        stream_usage=False,
+        stream_usage=True,
         **authentication,
     )
     resources.callback(client.root_client.close)

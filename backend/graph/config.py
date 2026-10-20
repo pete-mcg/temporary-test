@@ -22,6 +22,7 @@ class RagSettings(BaseSettings):
         populate_by_name=True,
     )
 
+    applicationinsights_connection_string: str | None = None
     azure_managed_identity_id: str | None = None
     azure_openai_endpoint: str | None = None
     azure_openai_resource: str | None = None

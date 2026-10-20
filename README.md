@@ -55,6 +55,50 @@ The citation tool message's `intent` contains the rewritten query. There are no
 graph checkpoints or persisted graph states. Retrieval ranking and answer wording
 can differ from the previous service.
 
+## Conversation tracing in Microsoft Foundry
+
+The existing Azure OpenAI deployment works with tracing; no model migration is
+needed. In your Foundry project, open **Agents > Traces > Connect** and connect
+the existing Application Insights resource. If Connect is unavailable, use
+**Manage > Project details > Connected resources > Add connection**. See
+[Foundry tracing setup](https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/trace-agent-setup).
+
+Set `APPLICATIONINSIGHTS_CONNECTION_STRING` on the app to that resource's
+connection string and set `OTEL_SERVICE_NAME=hr-chatbot`. An unset, empty, or
+whitespace-only connection string disables graph tracing. The app passes the
+connection string explicitly to `AzureAIOpenTelemetryTracer`; it does not use
+the tracer's differently named environment variable. Remove the old
+`AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING` setting from deployed apps.
+
+Disable App Service automatic instrumentation before restarting the app:
+set `ApplicationInsightsAgent_EXTENSION_VERSION=disabled`. The deployment
+templates include this setting. Let the tracer initialize Azure Monitor once
+per worker; do not add a second telemetry initializer. See
+[LangChain tracing guidance](https://learn.microsoft.com/en-us/azure/foundry/how-to/develop/langchain-traces).
+
+Content recording is enabled: traces contain conversation messages, model
+prompts and answers, rewritten queries, retrieved citation content, and graph
+state (including fixed no-results answers). Treat this as conversation data
+when setting Application Insights access and retention. The SDK limits recorded
+state size to 32,768 characters by default, and Azure telemetry limits also
+apply. Completed model streams include token usage; interrupted streams may
+not receive final usage. The SDK handles batching and process shutdown.
+
+Each turn has its own trace. A non-empty string
+`history_metadata.conversation_id` becomes `gen_ai.conversation.id` on its spans,
+so existing CosmosDB conversation IDs correlate turns. Requests without that
+ID are still traced. Agent and service names use `hr-chatbot`; nodes retain
+their rewrite, retrieval, and generation labels. Requests handled before the
+graph (such as the NAD intercept or input validation) are outside graph tracing.
+
+Deploy to development first. Ask an initial HR question and a follow-up in the
+same saved conversation. In the project's **Agents > Traces** view, allow a
+few minutes for ingestion, then inspect both traces and their shared conversation
+ID. Check prompts, retrieved content, answers, durations, and token usage. Trigger
+a controlled Search/model failure in development and confirm the failing span
+has error status before rolling out to production. Viewing traces requires
+access to the connected Application Insights/Log Analytics resource.
+
 ## Validation
 
 Install `requirements.txt`, `pytest`, and `pytest-asyncio`, then run:
