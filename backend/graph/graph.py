@@ -24,10 +24,12 @@ def build_graph(
             prompt=load_prompt("rewrite_query"),
             use_search=search_client is not None,
         ),
+        metadata={"otel_trace": True},
     )
     graph.add_node(
         "retrieve_documents",
         partial(retrieve_documents, search_client=search_client, settings=settings),
+        metadata={"otel_trace": True},
     )
     graph.add_node(
         "generate_response",
@@ -37,6 +39,7 @@ def build_graph(
             prompt=load_prompt("grounding"),
             settings=settings,
         ),
+        metadata={"otel_trace": True},
     )
     graph.add_edge(START, "rewrite_query")
     graph.add_edge("rewrite_query", "retrieve_documents")

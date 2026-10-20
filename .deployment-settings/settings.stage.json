@@ -5,9 +5,24 @@
     "slotSetting": true
   },
   {
-    "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
-    "value": "~3",
-    "slotSetting": true
+    "name": "OTEL_SERVICE_NAME",
+    "value": "hr-chatbot",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING",
+    "value": "true",
+    "slotSetting": false
+  },
+  {
+    "name": "OTEL_TRACES_SAMPLER",
+    "value": "microsoft.fixed_percentage",
+    "slotSetting": false
+  },
+  {
+    "name": "OTEL_TRACES_SAMPLER_ARG",
+    "value": "1.0",
+    "slotSetting": false
   },
   {
     "name": "AUTH_CLIENT_ID",
@@ -42,11 +57,6 @@
   {
     "name": "AUTH_VERIFY_SSL",
     "value": "False",
-    "slotSetting": false
-  },
-  {
-    "name": "AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING",
-    "value": "@Microsoft.KeyVault(SecretUri=https://kv-aai-prd-hrpolicyllm-1.vault.azure.net/secrets/app-insight-connection-string-stage)",
     "slotSetting": false
   },
   {

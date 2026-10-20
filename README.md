@@ -55,15 +55,59 @@ The citation tool message's `intent` contains the rewritten query. There are no
 graph checkpoints or persisted graph states. Retrieval ranking and answer wording
 can differ from the previous service.
 
+## Tracing in Microsoft Foundry
+
+Set `APPLICATIONINSIGHTS_CONNECTION_STRING` to the Application Insights resource
+for the environment. `AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING` remains a
+fallback for existing deployments. Without either connection string, application
+telemetry is disabled. Restart workers after changing telemetry settings.
+
+Use these settings in `.env` or App Service configuration:
+
+```dotenv
+OTEL_SERVICE_NAME=hr-chatbot
+AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true
+OTEL_TRACES_SAMPLER=microsoft.fixed_percentage
+OTEL_TRACES_SAMPLER_ARG=1.0
+```
+
+When configured, `microsoft-opentelemetry` exports HTTP, graph, step, and model
+spans plus application logs. Full prompts, answers, and retrieved document text
+are captured. Existing saved conversation IDs correlate turns; stateless requests
+have separate traces without a persistent conversation ID. Sampling is 100% with
+the settings above.
+
+Keep the existing Azure OpenAI deployment and Web App hosting. Connect the
+Foundry project to the same Application Insights resource, then select
+**Build > Agents > New agent > Link external agent**. Enter OpenTelemetry ID
+`hr-chatbot` and display name `HR chatbot`. This external-agent view is preview;
+it needs no AI Gateway or additional runtime SDK. See Microsoft's
+[tracing guide](https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/trace-agent-framework)
+and [external-agent registration guide](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/register-external-agent).
+
+Before rollout, remove `ApplicationInsightsAgent_EXTENSION_VERSION` from the
+deployed App Service and all deployment slots to prevent duplicate instrumentation.
+The deployment templates omit it, but applying settings might not delete existing
+values. Keep the standard connection string; remove the redundant legacy setting
+after migration. Deploy development first, ask an HR question and follow-up, and
+check **Agents > HR chatbot > Traces** after 2–5 minutes. Confirm the three graph
+steps, model input/output, citations, errors, and shared conversation ID before
+promoting through the existing environments. Unset both connection-string settings
+and restart to disable application telemetry.
+
 ## Validation
 
-Install `requirements.txt`, `pytest`, and `pytest-asyncio`, then run:
+Upgrade pip first; older resolvers can reject the telemetry dependency set.
+Install the requirements and run:
 
 ```sh
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt pytest pytest-asyncio
 python -m pytest tests
 npm --prefix frontend run build
 ```
 
-Backend tests use the compiled graph with mocked model and Search calls. Before
-deployment, smoke-test against the configured Azure environment: ask an HR
-question, ask a follow-up, open its citation source, and reload the saved history.
+Backend tests use the compiled graph with mocked model and Search calls, plus
+in-memory telemetry export. Before deployment, smoke-test against the configured
+Azure environment: ask an HR question, ask a follow-up, open its citation source,
+and reload the saved history.

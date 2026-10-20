@@ -49,6 +49,12 @@ def answer_messages(
     return messages
 
 
+def answer_update(state: GraphState, answer: str) -> dict[str, object]:
+    messages = [message.model_dump() for message in state.messages]
+    messages.append({"role": "assistant", "content": answer})
+    return {"answer": answer, "messages": messages}
+
+
 async def generate_response(
     state: GraphState,
     config: RunnableConfig,
@@ -56,17 +62,17 @@ async def generate_response(
     model: BaseChatModel,
     prompt: str,
     settings: RagSettings,
-) -> dict[str, str]:
+) -> dict[str, object]:
     if (
         settings.search_enabled
         and settings.azure_search_enable_in_domain
         and not state.citations
     ):
-        return {"answer": INSUFFICIENT_INFORMATION}
+        return answer_update(state, INSUFFICIENT_INFORMATION)
 
     response = await model.ainvoke(
         answer_messages(state, settings, prompt),
         config=config,
         **state.generation.model_arguments(),
     )
-    return {"answer": response.text}
+    return answer_update(state, response.text)

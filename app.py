@@ -7,6 +7,13 @@ from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack
 from dotenv import load_dotenv
 from backend.logger import logger
+from backend.config import Config
+from backend.telemetry import configure_telemetry
+
+# Initialize instrumentation before importing clients and graph modules.
+load_dotenv()
+config = Config()
+configure_telemetry(config.telemetry_connection_string)
 
 from quart import (
     Response,
@@ -22,6 +29,7 @@ from quart import (
 )
 from quart_cors import cors
 from quart_session import Session
+from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 
 from langchain_openai import AzureChatOpenAI
 from pydantic import ValidationError
@@ -35,7 +43,6 @@ from backend.auth.credential_helpers import (
     create_async_chained_credential,
     create_sync_chained_credential,
 )
-from backend.config import Config
 from backend.history.cosmosdbservice import CosmosConversationClient
 from backend.graph.config import RagSettings
 from backend.graph.graph import build_graph
@@ -60,14 +67,6 @@ from backend.auth.auth_controller import (
 )
 
 bp = Blueprint("routes", __name__, static_folder="static", template_folder="static")
-
-load_dotenv()
-
-from azure.monitor.opentelemetry import configure_azure_monitor
-from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-
-RequestsInstrumentor().instrument()
 
 AZURE_MANAGED_IDENTITY_ID = os.environ.get("AZURE_MANAGED_IDENTITY_ID")
 
@@ -106,21 +105,11 @@ UI_EXAMPLE_PROMPT_ICON_3 = os.environ.get("UI_EXAMPLE_PROMPT_ICON_3")
 
 APP_ENV = os.environ.get("APP_ENV")
 
-# Application Insights Settings
-AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING = os.environ.get("AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING")
-
-if AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING:
-    configure_azure_monitor(
-        connection_string=AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING,
-        sampling_ratio=1.0
-    )
-
 cosmos_db_ready = asyncio.Event()
 table_storage_ready = asyncio.Event()
 azure_openai_ready = asyncio.Event()
 redis_ready = asyncio.Event()
 
-config = Config()
 rag_settings = RagSettings()
 
 def create_app():
@@ -129,6 +118,8 @@ def create_app():
     app.register_blueprint(bp)
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.rag_settings = rag_settings
+    if config.telemetry_connection_string:
+        app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
 
     if APP_ENV == "development":
         app = cors(
@@ -162,8 +153,6 @@ def create_app():
             logger.exception("Failed to initialize Redis client")
             raise e
         
-        app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
-
     @app.while_serving
     async def graph_services():
         async with AsyncExitStack() as resources:
