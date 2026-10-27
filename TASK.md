@@ -2,21 +2,7 @@
 
 ## Context
 
-This is a RAG chatbot built using LangGraph with OpenAI models that are deployed in an Azure OpenAI resource, and uses both Azure Search Service for the knowledge base index and Azure CosmosDB for conversation history.
-
-It is deployed as an Azure Web Application, which users presently access.
-
-## Problem
-
-Currently I lack the visibility to know when my chatbot is performing as it should, or (more importantly) when something is going wrong. I need better observability.
-
-## Objective
-
-I am aware that in Microsoft Foundry, it is possible to view conversation traces from a chatbot. There is the `langchain-azure-ai` package, which can emit OpenTelemetry traces from LangChain and LangGraph applications and sink them in Azure Application Insights, by using `AzureAIOpenTelemetryTracer`.
-
-I am happy to redeploy an equivalent OpenAI model within Microsoft Foundry.
-
-The existing, basic Telemetry within this application does not necessarily need to be retained. It was written a long time ago by inexperienced developers, and we are very open to removing it.
+This RAG chatbot uses LangGraph and stores conversation telemetry in Application Insights / Microsoft Foundry. Please explore the most simple way to implement PII redaction on telemetry data. We should use a reliable third-party package, rather than re-inventing the wheel
 
 ## Task
 
@@ -26,34 +12,32 @@ Implement this in the **simplest** way possible. I don't want massive, over-engi
 
 ## Summary
 
-Attach one `AzureAIOpenTelemetryTracer` to existing graph. Send traces to Application Insights linked to Foundry project; inspect them in Foundry’s project tracing view.
+Use Presidio Analyzer + Anonymizer, loaded locally once per worker. Replace detected PII with placeholders such as <PERSON> and <EMAIL_ADDRESS> before telemetry export. Presidio supplies detection and replacement; application adds small telemetry adapter. Presidio overview
 
-Confirmed: enable conversation content recording. Keep existing Azure OpenAI deployment; tracer supports it. [Tracer implementation](https://github.com/langchain-ai/langchain-azure/blob/main/libs/azure-ai/langchain_azure_ai/callbacks/tracers/inference_tracing.py)
+Agreed scope: broad English PII, standard en_core_web_lg model, conversation traces only. Redaction failures suppress affected span’s content while chat continues.
 
 ## Implementation
 
-- **Dependencies:** add `langchain-azure-ai[opentelemetry]==1.2.11`; update LangGraph to `1.1.1` and aiohttp to `3.14.0`. Remove old direct telemetry pins and incompatible `pydantic_core` pin; pinned Pydantic selects matching core. Keep remaining direct pins. Dependency resolution checked for Python 3.11/Alpine.
-- **Configuration:** add optional `applicationinsights_connection_string` to existing `RagSettings`, reading `APPLICATIONINSIGHTS_CONNECTION_STRING`. Pass value explicitly to tracer. Blank value disables tracing.
-- **Startup:** add one small, typed setup helper in `app.py`. Run once per worker during existing graph startup. Create tracer with `enable_content_recording=True`, `trace_all_langgraph_nodes=True`, and `trace_state=True`; attach through graph’s `with_config(callbacks=[tracer])`. Let tracer configure Azure Monitor. [Tracing guidance](https://learn.microsoft.com/en-us/azure/foundry/how-to/develop/langchain-traces)
-- **Coverage:** existing nodes supply rewrite, retrieval, and generation spans; model callbacks supply prompts, answers, and failures. State recording captures custom `query`, `citations`, and `answer` fields, including deterministic fallback answers. Keep direct Search client.
-- **Correlation:** in `backend/graph/invoker.py`, pass existing non-empty string `history_metadata.conversation_id` as per-call `metadata.thread_id` for both `ainvoke` and `astream`. Omit when unavailable. Keep request metadata off shared tracer.
-- **Streaming:** set `stream_usage=True` on model so completed streams provide token counts. Existing text filtering should ignore usage-only chunks; verify this. Interrupted streams can lack final usage. [Streaming usage](https://reference.langchain.com/python/langchain-openai/chat_models/base/BaseChatOpenAI/stream_usage)
-- **Cleanup:** remove old `configure_azure_monitor`, `RequestsInstrumentor`, and ASGI middleware setup. Remove obsolete connection-string setting from deployment templates. Disable App Service automatic instrumentation during rollout to avoid competing telemetry initialization. [Azure guidance](https://learn.microsoft.com/en-us/troubleshoot/azure/azure-monitor/app-insights/telemetry/troubleshoot-app-service-issues)
+- Add one backend/telemetry.py module containing typed redaction helpers and one OpenTelemetry SpanProcessor.
+- In existing configure_graph_tracing, explicitly initialize Azure Monitor with redaction processor registered before exporters. Set tracer’s auto_configure_azure_monitor=False; keep one initializer per worker. Azure supports ordered custom processors. Azure configuration
+- Retain content recording and graph state tracing. Sanitize span text attributes, exception events, and status descriptions. This covers prompts, answers, rewritten queries, retrieved content, and graph state.
+- Decode serialized JSON, redact string values recursively, then serialize again. Drop malformed or truncated JSON fields. Preserve numbers, structural keys, timings, token counts, and generated trace/span/conversation IDs. Preserve conversation-ID attributes unchanged only when valid UUIDs; process other values normally.
+- Use built-in English recognizers and default thresholds. No custom regex, pseudonym mappings, cloud service, or configuration framework.
+- Ended Python spans are read-only through public APIs. Isolate replacement of SDK backing fields inside processor, following Azure’s documented processor pattern; pin SDK and test exported results. Azure processor example
+- If model initialization or redaction fails, remove affected span’s attributes, events, links, and status description; use fixed span name. Retain trace context, timestamps, and status code. Emit static diagnostic without original content or exception text.
+- Chat inputs, model calls, responses, and CosmosDB history retain original content. No public API or schema changes.
 
-## Foundry setup and rollout
+## Dependencies and deployment
 
-- Connect existing Application Insights resource to Foundry project; configure app with that resource’s connection string. Use stable service and agent name `hr-chatbot`.
-- Document setup, environment variables, content recording, and trace-view navigation in existing README/sample settings.
-- Deploy first to development. Verify traces inside Foundry before production rollout. Project tracing satisfies agreed viewer requirement. [Foundry setup](https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/trace-agent-setup)
+- Pin presidio-analyzer==2.2.366, presidio-anonymizer==2.2.366, spacy==3.8.18, and opentelemetry-sdk==1.45.1.
+- Upgrade Pydantic from 2.11.10 to 2.12.5, required by selected Presidio release.
+- Install pinned en_core_web_lg==3.8.0 during image build. No runtime model downloads; skip model initialization when tracing disabled.
+- Dependency dry run resolves for existing Python 3.11/Alpine target. Full container build remains required. Document model memory cost per Gunicorn worker.
 
-## Validation
+## Validation and limits
 
-- Extend existing pytest checks using real tracer with in-memory span exporter; avoid Azure calls.
-- Cover streaming and non-streaming: graph/node/model spans, recorded content, token usage, conversation correlation, and unchanged response/citation contracts.
-- Cover missing configuration, rewrite fallback, Search/model failures, cancellation, and concurrent conversations. Verify callback attaches once during startup.
-- Run backend tests, build existing Docker image, and run `pip check` inside image.
-- Cloud acceptance: initial question and follow-up appear in Foundry with shared conversation ID; inspect prompts, retrieved content, answers, durations, and a controlled development failure.
-
-## Defaults and boundaries
-
-Full content recording enabled as requested, subject to telemetry size limits. Preserve frontend, CosmosDB schema, model authentication, and chat behavior. Use SDK batching and shutdown behavior. Custom dashboards, alerts, quality evaluations, gateway registration, and model migration remain outside this change.
+- Extend existing in-memory exporter tests with synthetic names, emails, phones, financial identifiers, and supported national IDs.
+- Exercise streaming, non-streaming, follow-ups, retrieval, and controlled failures. Assert original PII absent from exported attributes, events, and status descriptions; chat behavior unchanged.
+- Test escaped/nested JSON, truncated state, missing model, redaction failure, correlation IDs, and initialization once per worker.
+- Run backend suite and container build. Verify synthetic examples in development Foundry traces before production rollout; measure latency and worker memory.
+- Application logs, existing stored telemetry, and CosmosDB data remain outside scope. Automated detection can miss PII; validate representative HR examples before rollout. Detection limits
