@@ -46,6 +46,7 @@ from backend.graph.state import ChatRequest, ConversationTitle
 
 from backend.services.redis_service import RedisService
 from backend.session.session_manager import SessionManager
+from backend.telemetry import configure_telemetry
 from backend.utils import (
     blob_service_client,
     format_as_ndjson,
@@ -296,8 +297,10 @@ def configure_graph_tracing(
     connection_string = (settings.applicationinsights_connection_string or "").strip()
     if not connection_string:
         return graph
+    configure_telemetry(connection_string)
     tracer = AzureAIOpenTelemetryTracer(
         connection_string=connection_string,
+        auto_configure_azure_monitor=False,
         name="hr-chatbot",
         enable_content_recording=True,
         trace_all_langgraph_nodes=True,

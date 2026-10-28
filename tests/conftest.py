@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 import httpx
 import pytest
 import pytest_asyncio
-from langchain_azure_ai.callbacks.tracers import AzureAIOpenTelemetryTracer
 from langchain_openai import AzureChatOpenAI
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -14,6 +13,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 from backend.graph.config import RagSettings
 from backend.graph.graph import build_graph
+from backend import telemetry
 
 
 @dataclass
@@ -179,14 +179,29 @@ def app_module(monkeypatch):
 
 
 @pytest.fixture
-def span_exporter(monkeypatch):
+def span_exporter(monkeypatch, pii_processor):
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
-    provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+    def configure_monitor(**kwargs):
+        for processor in kwargs["span_processors"]:
+            provider.add_span_processor(processor)
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+    telemetry.configure_telemetry.cache_clear()
+    monkeypatch.setattr(telemetry, "configure_azure_monitor", configure_monitor)
+    monkeypatch.setattr(telemetry, "PiiRedactionProcessor", lambda: pii_processor)
     monkeypatch.setattr("opentelemetry.trace.get_tracer_provider", lambda: provider)
-    monkeypatch.setattr(AzureAIOpenTelemetryTracer, "_azure_monitor_configured", False)
     yield exporter
     provider.shutdown()
+    telemetry.configure_telemetry.cache_clear()
+
+
+@pytest.fixture(scope="session")
+def pii_processor():
+    processor = telemetry.PiiRedactionProcessor()
+    assert processor.analyzer is not None
+    return processor
 
 
 @pytest.fixture

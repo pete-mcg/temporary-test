@@ -1,6 +1,7 @@
 import asyncio
 import json
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
 
 import pytest
 
@@ -95,7 +96,14 @@ async def test_rewrite_fallback(
 @pytest.mark.parametrize("streaming", [True, False])
 @pytest.mark.parametrize("empty_results", [True, False])
 async def test_conversation_traces(
-    traced_graph, span_exporter, model_api, search, settings, streaming, empty_results
+    traced_graph,
+    span_exporter,
+    pii_processor,
+    model_api,
+    search,
+    settings,
+    streaming,
+    empty_results,
 ):
     if empty_results:
         search.documents = []
@@ -119,7 +127,8 @@ async def test_conversation_traces(
     root = next(span for span in spans if span.parent is None)
     assert root.attributes["gen_ai.agent.name"] == "hr-chatbot"
     state = json.loads(root.attributes["gen_ai.agent.state"])
-    assert state["query"] == model_api.rewrite and state["answer"] == expected
+    assert state["query"] == pii_processor.redact_text(model_api.rewrite)
+    assert state["answer"] == pii_processor.redact_text(expected)
     assert len(state["citations"]) == len(
         json.loads(messages[0]["content"])["citations"]
     )
@@ -140,14 +149,91 @@ async def test_conversation_traces(
     for span in models:
         assert span.attributes["gen_ai.usage.input_tokens"] == 10
         assert span.attributes["gen_ai.usage.output_tokens"] == 5
-        assert request.messages[-1].content in span.attributes["gen_ai.input.messages"]
-    if not empty_results:
-        assert search.documents[0]["content"] in json.dumps(state["citations"])
-        answer = models[-1]
         assert (
-            search.documents[0]["content"] in answer.attributes["gen_ai.input.messages"]
+            pii_processor.redact_text(request.messages[-1].content)
+            in (span.attributes["gen_ai.input.messages"])
         )
+    if not empty_results:
+        content = pii_processor.redact_text(search.documents[0]["content"])
+        assert content in json.dumps(state["citations"])
+        answer = models[-1]
+        assert content in answer.attributes["gen_ai.input.messages"]
         assert model_api.answer in answer.attributes["gen_ai.output.messages"]
+
+
+@pytest.mark.parametrize("streaming", [True, False])
+@pytest.mark.parametrize("redaction_failure", [True, False])
+async def test_pii_stays_in_chat_only(
+    traced_graph,
+    span_exporter,
+    pii_processor,
+    model_api,
+    search,
+    settings,
+    monkeypatch,
+    streaming,
+    redaction_failure,
+):
+    email = "john.smith@example.com"
+    question = f"My name is John Smith. Can you email {email}?"
+    model_api.rewrite = f"Leave policy for {email}"
+    model_api.answer = f"John Smith, contact {email} [doc1]"
+    search.documents[0]["content"] = f"Employee John Smith: {email}"
+    if redaction_failure:
+        monkeypatch.setattr(
+            pii_processor.analyzer, "analyze", Mock(side_effect=RuntimeError(email))
+        )
+    request = chat_request(
+        messages=[
+            {"role": "user", "content": question},
+            {"role": "assistant", "content": f"Earlier answer for {email}"},
+            {"role": "user", "content": f"What about carry-over for {email}?"},
+        ],
+        history_metadata={"conversation_id": str(uuid4())},
+    )
+    if streaming:
+        events = [
+            event async for event in stream_graph(traced_graph, request, settings)
+        ]
+    else:
+        events = [await complete_graph(traced_graph, request, settings)]
+    messages = [
+        message for event in events for message in event["choices"][0]["messages"]
+    ]
+    assert "".join(message["content"] for message in messages[1:]) == model_api.answer
+    assert json.loads(messages[0]["content"])["citations"][0] == {
+        **search.documents[0],
+        "chunk_id": "0",
+    }
+    assert search.calls[0]["search_text"] == model_api.rewrite
+    assert question in json.dumps(model_api.calls)
+    assert request.messages[0].content == question
+    spans = span_exporter.get_finished_spans()
+    assert spans
+    for span in spans:
+        assert email not in span.to_json() and "John Smith" not in span.to_json()
+        if redaction_failure:
+            assert not span.attributes and not span.events
+        else:
+            assert (
+                span.attributes["gen_ai.conversation.id"]
+                == request.history_metadata["conversation_id"]
+            )
+    if not redaction_failure:
+        root = next(span for span in spans if span.parent is None)
+        state = json.loads(root.attributes["gen_ai.agent.state"])
+        assert "<EMAIL_ADDRESS>" in state["query"]
+        assert "<EMAIL_ADDRESS>" in state["citations"][0]
+    search.error = RuntimeError(f"Search failed for {email}")
+    with pytest.raises(RuntimeError, match=email):
+        await complete_graph(traced_graph, request, settings)
+    errors = [
+        span
+        for span in span_exporter.get_finished_spans()
+        if span.status.status_code.name == "ERROR"
+    ]
+    assert errors
+    assert all(email not in span.to_json() for span in errors)
 
 
 @pytest.mark.parametrize("conversation_id", [None, "", "   ", 123])

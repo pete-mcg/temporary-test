@@ -175,8 +175,18 @@ async def test_title_and_fallback(application, app_module, model_api, title, exp
 
 @pytest.mark.parametrize("streaming", [True, False])
 async def test_history_round_trip_and_feedback(
-    application, app_module, model_api, streaming, monkeypatch
+    application,
+    app_module,
+    model_api,
+    streaming,
+    monkeypatch,
+    traced_graph,
+    span_exporter,
 ):
+    email = "john.smith@example.com"
+    question = f"My name is John Smith. Email {email}. What is my leave allowance?"
+    model_api.answer = f"Contact {email} [doc1]"
+    application.chat_graph = traced_graph
     items = {}
 
     async def upsert(item):
@@ -232,7 +242,7 @@ async def test_history_round_trip_and_feedback(
         update={"azure_openai_stream": streaming}
     )
     client = application.test_client()
-    response = await client.post("/history/generate", json=request_body())
+    response = await client.post("/history/generate", json=request_body(question))
     assert response.status_code == 200
     if streaming:
         events = [
@@ -262,6 +272,10 @@ async def test_history_round_trip_and_feedback(
     assert response.status_code == 200
     stored = [item for item in items.values() if item["type"] == "message"]
     assert [item["role"] for item in stored] == ["user", "tool", "assistant"]
+    assert stored[0]["content"] == question
+    assert stored[-1]["content"] == model_api.answer
+    spans = span_exporter.get_finished_spans()
+    assert spans and all(email not in span.to_json() for span in spans)
     assert set(stored[-1]) == {
         "id",
         "type",
@@ -408,6 +422,7 @@ async def test_graph_built_once_at_startup(
         if connection_string and connection_string.strip():
             tracer_factory.assert_called_once_with(
                 connection_string=connection_string,
+                auto_configure_azure_monitor=False,
                 name="hr-chatbot",
                 enable_content_recording=True,
                 trace_all_langgraph_nodes=True,
