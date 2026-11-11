@@ -130,9 +130,15 @@ Measure worker memory and turn latency in development before sizing production.
 The current CPU-based Gunicorn worker count can multiply this cost. With tracing
 disabled, the model is not loaded.
 
+## Continuous Friendliness evaluation in Foundry
+
+See [evaluation setup and operation](script/README.md) for configuration,
+permissions, validation, and disabling the continuous rule.
+
 ## Validation
 
-Install `requirements.txt`, `pytest`, and `pytest-asyncio`, then run:
+Install `requirements.txt`, `pytest`, and `pytest-asyncio`. For the evaluation
+tests, also install `script/requirements.txt`, then run:
 
 ```sh
 python -m pytest tests
